@@ -1,0 +1,2758 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clase de repaso — Objetos, encapsulamiento y herencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;0,800;1,400&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================================
+   TEMA — "CONSOLA"
+   Cambiá estas variables y cambia todo el deck.
+   =========================================================== */
+:root{
+  /* Colores */
+  --stage-bg:#05070a;      /* fondo fuera del escenario 16:9 */
+  --slide-bg:#0d1117;      /* fondo de cada slide */
+  --panel:#161b22;         /* tarjetas / bloques de código */
+  --panel-2:#11161d;
+  --line:#21262d;          /* bordes y grilla */
+  --ink:#e6edf3;           /* texto principal */
+  --dim:#8b949e;           /* texto secundario */
+  --faint:#39414d;         /* números de línea */
+  --green:#3fb950;         /* acento primario */
+  --amber:#d29922;         /* acento secundario / advertencia */
+  --red:#f85149;           /* error */
+  --blue:#58a6ff;
+  --purple:#bc8cff;
+
+  /* Sintaxis (paleta GitHub Dark) */
+  --syn-key:#ff7b72;       /* class, const, return... */
+  --syn-fn:#d2a8ff;        /* nombres de método */
+  --syn-str:#a5d6ff;       /* strings */
+  --syn-com:#8b949e;       /* comentarios */
+  --syn-num:#79c0ff;       /* números y tipos primitivos */
+  --syn-cls:#7ee787;       /* nombres de clase */
+  --syn-prop:#ffa657;      /* propiedades */
+
+  /* Tipografía — medidas del escenario 1920x1080 */
+  --font-mono:'JetBrains Mono',monospace;
+  --font-body:'Space Grotesk',sans-serif;
+
+  /* Animación */
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+/* ===========================================================
+   ESCENARIO FIJO 16:9 (viewport-base.css — obligatorio)
+   =========================================================== */
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage-bg,#000);}
+.deck-viewport{position:fixed;inset:0;overflow:hidden;background:var(--stage-bg,#000);}
+.deck-stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;transform-origin:0 0;background:var(--slide-bg,#fff);}
+.slide{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden;display:block;visibility:hidden;opacity:0;pointer-events:none;background:var(--slide-bg,#fff);}
+.slide.active,.slide.visible{visibility:visible;opacity:1;pointer-events:auto;z-index:1;}
+img,video,canvas,svg{max-width:100%;max-height:100%;}
+.deck-controls{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:1000;}
+@media print{
+  html,body{width:1920px;height:auto;overflow:visible;background:#fff;}
+  .deck-viewport{position:static;overflow:visible;background:#fff;}
+  .deck-stage{position:static;width:auto;height:auto;transform:none!important;background:none;}
+  .slide{position:relative;display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;width:1920px;height:1080px;break-after:page;page-break-after:always;}
+  .slide:last-child{break-after:auto;page-break-after:auto;}
+  .deck-controls{display:none!important;}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.2s!important;}
+}
+
+/* ===========================================================
+   ESTRUCTURA DE SLIDE
+   =========================================================== */
+.slide{
+  font-family:var(--font-body);color:var(--ink);
+  background:
+    radial-gradient(1000px 640px at 88% 6%, rgba(63,185,80,.06), transparent 62%),
+    radial-gradient(760px 520px at 4% 100%, rgba(88,166,255,.05), transparent 62%),
+    var(--slide-bg);
+}
+/* renglones del editor, de fondo */
+.grid-bg{position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px);
+  background-size:100% 44px;opacity:.28;}
+
+/* barra superior tipo IDE */
+.chrome{position:absolute;top:0;left:0;right:0;height:60px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:0 34px;background:rgba(13,17,23,.92);z-index:3;}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;}
+.tab{font-family:var(--font-mono);font-size:14px;color:var(--dim);border:1px solid var(--line);
+  border-bottom:none;padding:8px 16px;margin-bottom:-1px;background:#0d1117;white-space:nowrap;}
+.tab.on{color:var(--green);background:#161b22;}
+.breadcrumb{margin-left:auto;font-family:var(--font-mono);font-size:14px;color:var(--faint);letter-spacing:.06em;}
+
+/* cuerpo */
+.body{position:absolute;top:60px;left:0;right:0;bottom:56px;padding:34px 68px 0 68px;
+  display:flex;flex-direction:column;}
+
+/* pie */
+.foot{position:absolute;left:0;right:0;bottom:0;height:56px;border-top:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;padding:0 34px;
+  font-family:var(--font-mono);font-size:14px;color:var(--faint);background:rgba(13,17,23,.92);z-index:3;}
+.foot .left{display:flex;align-items:center;gap:10px;}
+.foot .branch{color:var(--green);}
+
+/* ===========================================================
+   TIPOGRAFÍA
+   =========================================================== */
+.kicker{font-family:var(--font-mono);font-size:17px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--green);margin-bottom:14px;}
+.kicker .c{color:var(--faint);}
+.kicker.amber{color:var(--amber);}
+.kicker.red{color:var(--red);}
+.kicker.blue{color:var(--blue);}
+
+h2{font-size:50px;line-height:1.06;font-weight:700;letter-spacing:-.025em;margin-bottom:18px;}
+h2 .accent{color:var(--green);}
+h2 .amber{color:var(--amber);}
+h2 code{font-family:var(--font-mono);font-size:.86em;color:var(--syn-prop);}
+
+p{font-size:26px;line-height:1.5;color:var(--ink);}
+p.dim{color:var(--dim);}
+p+p{margin-top:16px;}
+strong,b{font-weight:700;}
+em{font-style:italic;}
+
+.lead{font-size:29px;line-height:1.48;}
+.small{font-size:22px;line-height:1.5;color:var(--dim);}
+
+code.inl{font-family:var(--font-mono);font-size:.9em;background:#1c2431;border:1px solid var(--line);
+  padding:2px 8px;border-radius:4px;color:var(--syn-prop);}
+
+.mark-g{color:var(--green);font-weight:700;}
+.mark-a{color:var(--amber);font-weight:700;}
+.mark-r{color:var(--red);font-weight:700;}
+
+/* ===========================================================
+   BLOQUES DE CÓDIGO
+   =========================================================== */
+.code{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.code .bar{height:34px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+  padding:0 14px;gap:8px;font-family:var(--font-mono);font-size:13px;color:var(--dim);background:#12171e;}
+.code .bar .fn{color:var(--dim);}
+.code pre{font-family:var(--font-mono);font-size:20px;line-height:1.5;padding:16px 20px;
+  white-space:pre;overflow:hidden;color:var(--ink);}
+.code.sm pre{font-size:17.5px;line-height:1.46;padding:13px 17px;}
+.code.xs pre{font-size:15px;line-height:1.42;padding:11px 15px;}
+.bad,.good{margin-left:-20px;margin-right:-20px;padding-left:17px;padding-right:17px;}
+.code.sm .bad,.code.sm .good{margin-left:-17px;margin-right:-17px;padding-left:14px;padding-right:14px;}
+.code.xs .bad,.code.xs .good{margin-left:-15px;margin-right:-15px;padding-left:12px;padding-right:12px;}
+
+/* colores de sintaxis */
+.k{color:var(--syn-key);}      /* keyword */
+.f{color:var(--syn-fn);}       /* función/método */
+.s{color:var(--syn-str);}      /* string */
+.c{color:var(--syn-com);font-style:italic;} /* comentario */
+.n{color:var(--syn-num);}      /* número / tipo */
+.cl{color:var(--syn-cls);}     /* clase */
+.pr{color:var(--syn-prop);}    /* propiedad */
+.bad{background:rgba(248,81,73,.14);border-left:3px solid var(--red);display:block;
+  margin:0 -22px;padding:0 19px;}
+.good{background:rgba(63,185,80,.12);border-left:3px solid var(--green);display:block;
+  margin:0 -22px;padding:0 19px;}
+
+/* consola de salida */
+.out{background:#010409;border:1px solid var(--line);border-radius:8px;padding:20px 24px;
+  font-family:var(--font-mono);font-size:23px;line-height:1.65;color:var(--green);}
+.out .p{color:var(--faint);}
+.out .err{color:var(--red);}
+
+/* ===========================================================
+   COMPONENTES
+   =========================================================== */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:26px;}
+.grid2.wide-l{grid-template-columns:1.25fr 1fr;}
+.grid2.wide-r{grid-template-columns:1fr 1.3fr;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+.stack{display:flex;flex-direction:column;gap:20px;}
+.fill{flex:1;min-height:0;}
+
+.card{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:26px 28px;}
+.card h3{font-size:26px;font-weight:700;margin-bottom:12px;}
+.card p{font-size:22px;line-height:1.48;color:var(--dim);}
+.card.g{border-left:4px solid var(--green);}
+.card.a{border-left:4px solid var(--amber);}
+.card.r{border-left:4px solid var(--red);}
+.card.b{border-left:4px solid var(--blue);}
+
+/* llamada / idea clave */
+.note{border-left:4px solid var(--amber);background:rgba(210,153,34,.08);padding:20px 26px;border-radius:0 8px 8px 0;}
+.note.g{border-color:var(--green);background:rgba(63,185,80,.08);}
+.note.r{border-color:var(--red);background:rgba(248,81,73,.08);}
+.note p{font-size:24px;line-height:1.46;}
+.note .tag{font-family:var(--font-mono);font-size:15px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--amber);display:block;margin-bottom:8px;}
+.note.g .tag{color:var(--green);}
+.note.r .tag{color:var(--red);}
+
+/* tablas */
+table{width:100%;border-collapse:collapse;font-size:24px;}
+th{text-align:left;font-family:var(--font-mono);font-size:15px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dim);font-weight:400;padding:0 18px 12px;border-bottom:1px solid var(--line);}
+td{padding:16px 18px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.4;}
+tr:last-child td{border-bottom:none;}
+td.mono{font-family:var(--font-mono);font-size:21px;color:var(--syn-prop);}
+td.yes{color:var(--green);font-weight:700;}
+td.no{color:var(--red);font-weight:700;}
+table.sm{font-size:21px;}
+table.sm td{padding:11px 14px;}
+table.sm th{padding:0 14px 9px;}
+
+/* consigna de ejercicio */
+.consigna{border:1px dashed var(--green);border-radius:8px;padding:26px 30px;background:rgba(63,185,80,.05);}
+.consigna .tag{font-family:var(--font-mono);font-size:15px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--green);display:block;margin-bottom:12px;}
+.consigna ul{margin:12px 0 0 26px;}
+.consigna li{font-size:25px;line-height:1.62;}
+.consigna li code{font-family:var(--font-mono);font-size:.88em;color:var(--syn-prop);}
+
+ul.bullets{margin-left:26px;}
+ul.bullets li{font-size:25px;line-height:1.6;margin-bottom:8px;}
+ul.bullets li::marker{color:var(--green);}
+ol.nums{margin-left:30px;}
+ol.nums li{font-size:25px;line-height:1.6;margin-bottom:10px;}
+ol.nums li::marker{color:var(--green);font-family:var(--font-mono);}
+
+/* ===========================================================
+   BLOQUE DE RESPUESTA (oculta — se revela al click)
+   El overlay ocupa la slide entera: así una respuesta larga
+   entra completa sin scroll ni desbordes.
+   =========================================================== */
+.reveal-btn{align-self:flex-start;margin-top:auto;margin-bottom:26px;
+  font-family:var(--font-mono);font-size:20px;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;border:1.5px solid var(--green);color:var(--green);
+  padding:14px 26px;border-radius:6px;cursor:pointer;
+  transition:background .25s var(--ease),box-shadow .25s var(--ease);}
+.reveal-btn:hover{background:rgba(63,185,80,.14);box-shadow:0 0 0 4px rgba(63,185,80,.1);}
+.reveal-btn::before{content:'▶ ';}
+.reveal-btn .hint{color:var(--faint);margin-left:10px;text-transform:none;letter-spacing:0;}
+
+.answer{position:absolute;inset:0;z-index:8;background:rgba(5,7,10,.985);
+  border-left:5px solid var(--green);
+  padding:52px 72px 44px;display:flex;flex-direction:column;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(18px);
+  transition:opacity .45s var(--ease),transform .45s var(--ease),visibility .45s;}
+.answer.open{opacity:1;visibility:visible;pointer-events:auto;transform:none;}
+.answer .ahead{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex:none;}
+.answer .atag{font-family:var(--font-mono);font-size:17px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);}
+.answer .close{font-family:var(--font-mono);font-size:15px;color:var(--faint);border:1px solid var(--line);
+  background:transparent;padding:9px 16px;border-radius:5px;cursor:pointer;letter-spacing:.06em;}
+.answer .close:hover{color:var(--ink);border-color:var(--dim);}
+.answer .abody{flex:1;min-height:0;display:flex;flex-direction:column;gap:20px;}
+.answer p{font-size:24px;line-height:1.48;}
+.answer p.big{font-size:29px;}
+.answer .code pre{font-size:18px;line-height:1.46;}
+.answer .code.sm pre{font-size:16px;line-height:1.44;}
+.answer .code.xs pre{font-size:14.5px;line-height:1.4;}
+.answer table{font-size:22px;}
+.answer table td{padding:12px 16px;}
+
+/* ===========================================================
+   ILUSTRACIONES (generadas en CSS/SVG — sin imágenes externas)
+   =========================================================== */
+/* 1. Plano -> casas construidas */
+.blueprint{background:#0b1220;border:1px solid #1d3557;border-radius:8px;position:relative;
+  padding:22px;height:100%;
+  background-image:linear-gradient(rgba(88,166,255,.10) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(88,166,255,.10) 1px,transparent 1px);
+  background-size:26px 26px;}
+.house-icon{display:block;margin:0 auto;}
+.built{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:16px 12px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+.built .lab{font-family:var(--font-mono);font-size:15px;color:var(--dim);margin-top:8px;}
+.arrow-new{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;}
+.arrow-new .kw{font-family:var(--font-mono);font-size:22px;color:var(--syn-key);}
+
+/* 2. Círculos concéntricos de visibilidad */
+.viz-rings{display:flex;align-items:center;justify-content:center;height:100%;}
+
+/* ===========================================================
+   ANIMACIÓN DE ENTRADA (staggered)
+   =========================================================== */
+.reveal{opacity:0;transform:translateY(26px);
+  transition:opacity .7s var(--ease),transform .7s var(--ease);}
+.slide.visible .reveal{opacity:1;transform:none;}
+.slide.visible .reveal:nth-child(1){transition-delay:.06s}
+.slide.visible .reveal:nth-child(2){transition-delay:.14s}
+.slide.visible .reveal:nth-child(3){transition-delay:.22s}
+.slide.visible .reveal:nth-child(4){transition-delay:.30s}
+.slide.visible .reveal:nth-child(5){transition-delay:.38s}
+.slide.visible .reveal:nth-child(6){transition-delay:.46s}
+
+/* ===========================================================
+   SLIDE DE TÍTULO
+   =========================================================== */
+.title-wrap{position:absolute;top:60px;left:0;right:0;bottom:0;display:flex;}
+.gutter{width:92px;border-right:1px solid var(--line);padding-top:64px;
+  font-family:var(--font-mono);font-size:19px;color:var(--faint);text-align:right;line-height:44px;
+  padding-right:20px;flex:none;}
+.title-body{flex:1;padding:64px 80px 0 52px;}
+h1{font-size:104px;line-height:1;margin:20px 0 0;font-weight:700;letter-spacing:-.035em;}
+h1 .hl{color:var(--amber);}
+h1 .op{color:var(--dim);font-weight:400;}
+.caret{display:inline-block;width:15px;height:74px;background:var(--green);vertical-align:-11px;
+  margin-left:12px;animation:blink 1.05s step-end infinite;}
+@keyframes blink{50%{opacity:0}}
+.title-sub{margin-top:32px;font-size:28px;color:var(--dim);max-width:1180px;line-height:1.5;}
+.title-sub b{color:var(--ink);font-weight:500;}
+.pills{display:flex;gap:12px;margin-top:44px;}
+.pill{font-family:var(--font-mono);font-size:17px;padding:9px 16px;border:1px solid var(--line);
+  color:var(--dim);background:#161b22;border-radius:4px;}
+.pill.g{color:var(--green);border-color:rgba(63,185,80,.4);}
+
+/* ===========================================================
+   PROGRESO + EDICIÓN
+   =========================================================== */
+.progress{position:fixed;left:0;bottom:0;height:3px;background:var(--green);z-index:1200;
+  width:0;transition:width .35s var(--ease);}
+.edit-hotzone{position:fixed;top:0;left:0;width:80px;height:80px;z-index:10000;cursor:pointer;}
+.edit-toggle{position:fixed;top:16px;left:16px;z-index:10001;opacity:0;pointer-events:none;
+  transition:opacity .3s ease;background:#161b22;border:1px solid var(--line);color:var(--ink);
+  font-size:20px;width:46px;height:46px;border-radius:8px;cursor:pointer;}
+.edit-toggle.show,.edit-toggle.active{opacity:1;pointer-events:auto;}
+.edit-toggle.active{border-color:var(--green);color:var(--green);}
+body.editing [contenteditable="true"]{outline:1px dashed var(--green);outline-offset:3px;}
+</style>
+</head>
+<body>
+
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="Modo edición (E)">✏️</button>
+<div class="progress" id="progress"></div>
+
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+
+<!-- ======================= 01 · TÍTULO ======================= -->
+<section class="slide title-slide active">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div>
+    <div class="dot" style="background:#d29922"></div>
+    <div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="tab">clase-3.ts</div>
+    <div class="breadcrumb">PROGRAMACIÓN II</div>
+  </div>
+
+  <div class="title-wrap">
+    <div class="gutter"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div></div>
+    <div class="title-body">
+      <div class="kicker reveal"><span class="c">//</span> Programación II <span class="c">·</span> Trinidad</div>
+      <h1 class="reveal">Objetos,<br><span class="hl">encapsulamiento</span><br><span class="op">y</span> herencia<span class="caret"></span></h1>
+      <p class="title-sub reveal">
+        Hoy no arrancamos de cero: arrancamos <b>sacando de tu cabeza</b> lo que ya está ahí.<br>
+        La clase es a preguntas. Yo pregunto, vos contestás, y <b>recién después</b> confirmamos.<br>
+        Si algo no sale, no importa: eso es exactamente lo que vinimos a encontrar.
+      </p>
+      <div class="pills reveal">
+        <div class="pill g">clase de repaso</div>
+        <div class="pill">4 ejercicios en vivo</div>
+        <div class="pill">6 para casa</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="left"><span class="branch">●</span> tsx — listo para correr</div>
+    <div><span class="num">01</span> / 32</div>
+  </div>
+</section>
+
+
+<!-- ======================= 02 · CHECKPOINT ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">CHECKPOINT</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Checkpoint</div>
+      <h2>La pregunta de siempre</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px">
+      <div class="stack">
+        <p class="lead">¿Qué es una <span class="mark-g">clase</span> y qué es un <span class="mark-a">objeto</span>?</p>
+        <p class="dim">Decilo con tus palabras, no con la definición del apunte.</p>
+        <div class="note">
+          <span class="tag">Y después</span>
+          <p>En este código, <b>¿cuántas clases hay y cuántos objetos hay?</b></p>
+        </div>
+      </div>
+
+      <div class="code">
+        <div class="bar"><span class="fn">auto.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Auto</span> {
+  <span class="pr">marca</span>: <span class="n">string</span>;
+}
+
+<span class="k">const</span> <span class="pr">auto1</span> = <span class="k">new</span> <span class="cl">Auto</span>();
+<span class="k">const</span> <span class="pr">auto2</span> = <span class="k">new</span> <span class="cl">Auto</span>();
+<span class="k">const</span> <span class="pr">auto3</span> = <span class="k">new</span> <span class="cl">Auto</span>();</pre>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a1">Ver respuesta <span class="hint">(pensala antes)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a1">
+    <div class="ahead">
+      <div class="atag">Respuesta</div>
+      <button class="close">esc · cerrar</button>
+    </div>
+    <div class="abody">
+      <p class="big"><span class="mark-g">Una clase</span> (<code class="inl">Auto</code>) y <span class="mark-a">tres objetos</span> (<code class="inl">auto1</code>, <code class="inl">auto2</code>, <code class="inl">auto3</code>).</p>
+      <div class="grid2" style="gap:26px">
+        <div class="card g">
+          <h3>La clase es el molde</h3>
+          <p>Define qué van a tener los autos: una marca. <b>No es un auto.</b> No podés manejarla.</p>
+        </div>
+        <div class="card a">
+          <h3>El objeto es lo que sale del molde</h3>
+          <p>Una cosa concreta, que ocupa lugar en memoria y tiene <b>sus propios valores</b>.</p>
+        </div>
+      </div>
+      <p>Cuando escribís <code class="inl">new Auto()</code> estás <b>instanciando</b>: fabricando un auto a partir del plano.</p>
+      <div class="note g">
+        <span class="tag">La imagen que sirve</span>
+        <p>Un plano de edificio, mil edificios construidos. <b>El plano es uno solo.</b></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>02 / 32</div></div>
+</section>
+
+
+<!-- ======================= 03 · CLASE Y OBJETO (ILUSTRACIÓN) ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">CONCEPTO</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Concepto</div>
+      <h2>Clase y objeto</h2>
+    </div>
+
+    <!-- ILUSTRACIÓN: plano de arquitecto -> new -> tres casas construidas -->
+    <div class="reveal" style="flex:1;display:grid;grid-template-columns:1fr 150px 1.5fr;gap:24px;align-items:stretch;min-height:0;">
+
+      <!-- El plano -->
+      <div class="blueprint">
+        <div style="font-family:var(--font-mono);font-size:15px;color:#58a6ff;letter-spacing:.12em;margin-bottom:6px;">CLASE — Casa</div>
+        <svg viewBox="0 0 300 200" style="width:100%;height:calc(100% - 52px)">
+          <!-- plano técnico: líneas, cotas, medidas -->
+          <g fill="none" stroke="#58a6ff" stroke-width="2">
+            <path d="M40 150 L40 80 L150 25 L260 80 L260 150 Z"/>
+            <path d="M40 80 L150 25 L260 80" stroke-width="2.5"/>
+            <rect x="120" y="105" width="60" height="45"/>
+            <rect x="62" y="98" width="34" height="28"/>
+            <rect x="204" y="98" width="34" height="28"/>
+          </g>
+          <!-- cotas -->
+          <g stroke="#3b5878" stroke-width="1.2" fill="none">
+            <path d="M40 168 L260 168"/><path d="M40 163 L40 173"/><path d="M260 163 L260 173"/>
+            <path d="M22 80 L22 150"/><path d="M17 80 L27 80"/><path d="M17 150 L27 150"/>
+          </g>
+          <text x="150" y="186" fill="#3b5878" font-family="monospace" font-size="13" text-anchor="middle">ancho</text>
+          <text x="14" y="118" fill="#3b5878" font-family="monospace" font-size="13" text-anchor="middle" transform="rotate(-90 14 118)">alto</text>
+          <!-- nodos de esquina -->
+          <g fill="#58a6ff">
+            <circle cx="40" cy="80" r="3.5"/><circle cx="150" cy="25" r="3.5"/>
+            <circle cx="260" cy="80" r="3.5"/><circle cx="40" cy="150" r="3.5"/><circle cx="260" cy="150" r="3.5"/>
+          </g>
+        </svg>
+        <div style="font-family:var(--font-mono);font-size:16px;color:#8b949e;text-align:center;margin-top:2px;">define</div>
+      </div>
+
+      <!-- La flecha: new -->
+      <div class="arrow-new">
+        <div class="kw">new</div>
+        <svg viewBox="0 0 120 40" style="width:120px;height:40px">
+          <g fill="none" stroke="#3fb950" stroke-width="3" stroke-linecap="round">
+            <path d="M6 20 L100 20"/>
+            <path d="M84 8 L104 20 L84 32"/>
+          </g>
+        </svg>
+        <div style="font-family:var(--font-mono);font-size:14px;color:var(--faint);">instancia</div>
+      </div>
+
+      <!-- Las casas construidas -->
+      <div style="display:flex;flex-direction:column;">
+        <div style="font-family:var(--font-mono);font-size:15px;color:var(--amber);letter-spacing:.12em;margin-bottom:10px;">OBJETOS — casa1, casa2, casa3</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;flex:1;">
+
+          <div class="built">
+            <svg class="house-icon" viewBox="0 0 120 110" style="width:100%;height:auto;max-height:180px">
+              <path d="M14 62 L60 24 L106 62 Z" fill="#f85149"/>
+              <rect x="26" y="62" width="68" height="42" fill="#c9433c"/>
+              <rect x="34" y="70" width="16" height="14" fill="#0d1117"/>
+              <rect x="70" y="70" width="16" height="14" fill="#0d1117"/>
+              <rect x="52" y="86" width="16" height="18" fill="#0d1117"/>
+              <rect x="26" y="46" width="10" height="16" fill="#c9433c"/>
+            </svg>
+            <div class="lab">roja · 2 pisos</div>
+          </div>
+
+          <div class="built">
+            <svg class="house-icon" viewBox="0 0 120 110" style="width:100%;height:auto;max-height:180px">
+              <path d="M18 68 L60 40 L102 68 Z" fill="#58a6ff"/>
+              <rect x="28" y="68" width="64" height="36" fill="#3f7fc4"/>
+              <rect x="38" y="76" width="18" height="14" fill="#0d1117"/>
+              <rect x="66" y="76" width="16" height="28" fill="#0d1117"/>
+            </svg>
+            <div class="lab">azul · 1 piso</div>
+          </div>
+
+          <div class="built">
+            <svg class="house-icon" viewBox="0 0 120 110" style="width:100%;height:auto;max-height:180px">
+              <path d="M12 60 L60 22 L108 60 L96 60 L60 34 L24 60 Z" fill="#e6edf3"/>
+              <rect x="26" y="60" width="68" height="44" fill="#b8c1cc"/>
+              <rect x="36" y="70" width="14" height="14" fill="#0d1117"/>
+              <rect x="70" y="70" width="14" height="14" fill="#0d1117"/>
+              <rect x="52" y="86" width="16" height="18" fill="#0d1117"/>
+            </svg>
+            <div class="lab">blanca · techo a dos aguas</div>
+          </div>
+
+        </div>
+        <div style="font-family:var(--font-mono);font-size:16px;color:#8b949e;text-align:center;margin-top:10px;">existen</div>
+      </div>
+    </div>
+
+    <div class="note g reveal" style="margin-top:22px;margin-bottom:24px">
+      <span class="tag">La idea</span>
+      <p>Cada objeto es <b>independiente</b>, aunque todos compartan la misma estructura definida por la clase.</p>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>03 / 32</div></div>
+</section>
+
+
+<!-- ======================= 04 · ATRIBUTOS Y MÉTODOS ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">CONCEPTO</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Concepto</div>
+      <h2>Atributos y métodos</h2>
+    </div>
+
+    <div class="reveal" style="flex:1">
+      <table>
+        <thead><tr><th style="width:50%">Atributos</th><th>Métodos</th></tr></thead>
+        <tbody>
+          <tr><td>Guardan información</td><td>Definen acciones</td></tr>
+          <tr><td>Son <b>variables</b></td><td>Son <b>funciones</b></td></tr>
+          <tr><td>Representan el <span class="mark-g">estado</span></td><td>Representan el <span class="mark-a">comportamiento</span></td></tr>
+          <tr>
+            <td class="mono">nombre · precio · saldo</td>
+            <td class="mono">saludar() · depositar() · arrancar()</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note g reveal" style="margin-bottom:26px">
+      <span class="tag">La regla mental</span>
+      <p style="font-family:var(--font-mono);font-size:26px;line-height:1.7">
+        Atributos <span style="color:var(--faint)">→</span> qué <b>ES</b> el objeto<br>
+        Métodos <span style="color:var(--faint)">&nbsp;&nbsp;→</span> qué <b>HACE</b> el objeto
+      </p>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>04 / 32</div></div>
+</section>
+
+
+<!-- ======================= 05 · PREDECÍ ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">PREDECÍ</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Predecí</div>
+      <h2>¿Qué imprime?</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="code">
+        <div class="bar"><span class="fn">predecir.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Auto</span> {
+  <span class="pr">marca</span>: <span class="n">string</span>;
+
+  <span class="f">arrancar</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`El ${this.marca} arranca`</span>);
+  }
+}
+
+<span class="k">const</span> <span class="pr">auto1</span> = <span class="k">new</span> <span class="cl">Auto</span>();
+<span class="k">const</span> <span class="pr">auto2</span> = <span class="k">new</span> <span class="cl">Auto</span>();
+
+<span class="pr">auto1</span>.<span class="pr">marca</span> = <span class="s">"Toyota"</span>;
+<span class="pr">auto2</span>.<span class="pr">marca</span> = <span class="s">"Ford"</span>;
+
+<span class="pr">auto1</span>.<span class="pr">marca</span> = <span class="s">"Fiat"</span>;
+
+<span class="pr">auto1</span>.<span class="f">arrancar</span>();
+<span class="pr">auto2</span>.<span class="f">arrancar</span>();</pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <p class="lead">Sin ejecutarlo: <b>¿qué sale por consola?</b></p>
+        <div class="out">
+          <div><span class="p">&gt;</span> <span style="color:var(--faint)">_</span></div>
+          <div><span class="p">&gt;</span> <span style="color:var(--faint)">_</span></div>
+        </div>
+        <p class="small">Prestá atención al orden de las asignaciones. Hay una línea que está ahí para hacerte tropezar.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>05 / 32</div></div>
+</section>
+
+
+<!-- ======================= 06 · PREDECÍ — RESPUESTA ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">PREDECÍ · RESPUESTA</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Predecí</div>
+      <h2>La respuesta</h2>
+    </div>
+
+    <div class="reveal" style="margin-bottom:26px">
+      <div class="out" style="font-size:28px">
+        <div><span class="p">$</span> npx tsx predecir.ts</div>
+        <div>El Fiat arranca</div>
+        <div>El Ford arranca</div>
+      </div>
+    </div>
+
+    <div class="grid2 reveal" style="gap:26px;flex:1;min-height:0">
+      <div class="card g">
+        <h3>Por qué</h3>
+        <p style="font-size:24px;color:var(--ink)"><code class="inl">auto1</code> y <code class="inl">auto2</code> son objetos <b>independientes</b>. Cambiarle la marca a uno <b>no toca</b> al otro, aunque salgan de la misma clase.</p>
+        <p style="margin-top:14px">Cada objeto tiene su propio espacio en memoria con sus propios valores. Comparten la <b>estructura</b>, no los <b>datos</b>.</p>
+      </div>
+
+      <div class="note" style="align-self:center">
+        <span class="tag">Si te resultó obvio, perfecto</span>
+        <p>Es la base de todo lo que viene. Cuando más adelante tengas un array de <b>50 animales</b>, cada uno va a tener su propio nombre y su propia energía — y vas a poder <b>confiar en eso</b>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>06 / 32</div></div>
+</section>
+
+
+<!-- ======================= 07 · EL CONSTRUCTOR ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">CONCEPTO</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Concepto</div>
+      <h2>El constructor</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:30px;flex:1;min-height:0">
+      <div class="stack">
+        <div class="card r">
+          <h3 style="color:var(--red)">El problema</h3>
+          <p style="font-size:22px">Asignar los valores a mano, uno por uno, es tedioso y peligroso: te podés <b>olvidar</b> de alguno.</p>
+        </div>
+        <div class="code sm">
+          <div class="bar"><span class="fn">a mano</span></div>
+<pre><span class="k">const</span> <span class="pr">auto1</span> = <span class="k">new</span> <span class="cl">Auto</span>();
+<span class="pr">auto1</span>.<span class="pr">marca</span> = <span class="s">"Toyota"</span>;
+<span class="c">// ...y si me olvido del modelo,</span>
+<span class="c">// el auto queda a medio construir</span></pre>
+        </div>
+        <div class="note g">
+          <span class="tag">La solución</span>
+          <p>El <b>constructor</b> es el método que se ejecuta <b>automáticamente</b> con <code class="inl">new</code>. Es el lugar donde el objeto nace <b>completo</b>.</p>
+        </div>
+      </div>
+
+      <div class="code">
+        <div class="bar"><span class="fn">persona.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Persona</span> {
+  <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="pr">edad</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">edad</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;  <span class="c">// mi atributo = el parámetro</span>
+    <span class="k">this</span>.<span class="pr">edad</span> = <span class="pr">edad</span>;
+  }
+
+  <span class="f">saludar</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`Hola, soy ${this.nombre}`</span>);
+  }
+}
+
+<span class="c">// imposible olvidarse: los pide</span>
+<span class="k">const</span> <span class="pr">p</span> = <span class="k">new</span> <span class="cl">Persona</span>(<span class="s">"Trinidad"</span>, <span class="n">22</span>);
+<span class="pr">p</span>.<span class="f">saludar</span>();</pre>
+      </div>
+    </div>
+
+    <div class="note reveal" style="margin-top:22px;margin-bottom:24px">
+      <span class="tag">Atajo de TypeScript</span>
+      <p style="font-family:var(--font-mono);font-size:23px"><span class="k">constructor</span>(<span class="k">private</span> <span class="pr">nombre</span>: <span class="n">string</span>) {}  <span class="c">// crea el atributo y lo asigna solo</span></p>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>07 / 32</div></div>
+</section>
+
+
+<!-- ======================= 08 · PARÁ Y PENSÁ — this ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">PARÁ Y PENSÁ</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker blue"><span class="c">//</span> Pará y pensá</div>
+      <h2><code>this.nombre</code> <span class="op" style="color:var(--dim)">vs</span> <code>nombre</code></h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="stack">
+        <p class="lead">En esta línea hay <b>dos cosas distintas</b> que se llaman igual:</p>
+        <div class="code">
+          <div class="bar"><span class="fn">constructor</span></div>
+<pre><span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>) {
+  <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+}</pre>
+        </div>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note">
+          <span class="tag">Pregunta</span>
+          <p>¿Qué es cada una?<br>¿Y qué pasaría si escribís <code class="inl">nombre = nombre;</code> <b>sin</b> el <code class="inl">this</code>?</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a2">Ver respuesta <span class="hint">(pensala antes)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a2">
+    <div class="ahead"><div class="atag">Respuesta</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <div class="grid2" style="gap:26px">
+        <div class="card g">
+          <h3><code class="inl">this.nombre</code> — izquierda</h3>
+          <p style="font-size:23px">El <b>atributo del objeto</b>. El que va a vivir adentro de la instancia.</p>
+        </div>
+        <div class="card a">
+          <h3><code class="inl">nombre</code> — derecha</h3>
+          <p style="font-size:23px">El <b>parámetro</b> del constructor. Un dato de paso: existe solo mientras corre el constructor, y después desaparece.</p>
+        </div>
+      </div>
+
+      <p><code class="inl">this</code> significa <b>"yo mismo"</b>: es la forma que tiene el objeto de hablar de sí mismo. <code class="inl">this.nombre</code> es <em>mi</em> nombre; <code class="inl">nombre</code> a secas es el que <em>me acaban de pasar</em>.</p>
+
+      <div class="grid2" style="gap:26px;align-items:start">
+        <div class="code sm">
+          <div class="bar"><span class="fn">el bug</span></div>
+<pre><span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>) {
+<span class="bad">  <span class="pr">nombre</span> = <span class="pr">nombre</span>;   <span class="c">// ← no hace nada útil</span></span>
+}
+
+<span class="pr">console</span>.<span class="f">log</span>(<span class="s">`Hola, soy ${p.nombre}`</span>);
+<span class="c">// Hola, soy undefined</span></pre>
+        </div>
+        <div class="note r" style="align-self:center">
+          <span class="tag">Por qué duele</span>
+          <p>Le estás asignando el parámetro <b>a sí mismo</b>. El atributo del objeto <b>nunca se toca</b> y queda <code class="inl">undefined</code>.</p>
+          <p style="margin-top:12px">Es un bug clásico y <b>silencioso</b>: no rompe, no avisa. Simplemente después imprimís <code class="inl">undefined</code>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>08 / 32</div></div>
+</section>
+
+
+<!-- ======================= 09 · EV1 — CONSIGNA ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">producto.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 1</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Ejercicio en vivo 1</div>
+      <h2>La clase <span class="accent">Producto</span></h2>
+    </div>
+
+    <div class="grid2 wide-l reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <p style="font-size:26px">Escribí una clase <code class="inl">Producto</code> con:</p>
+        <ul>
+          <li>Atributos: <code>nombre</code> y <code>precio</code></li>
+          <li>Un <b>constructor</b> que reciba los dos</li>
+          <li>Un método <code>mostrarInfo()</code> que imprima<br><code>"Mouse cuesta $3000"</code></li>
+        </ul>
+        <p style="font-size:26px;margin-top:20px">Después creá <b>dos</b> productos distintos y mostrá la info de cada uno.</p>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="code sm">
+          <div class="bar"><span class="fn">esperado</span></div>
+<pre><span class="c">// salida esperada</span>
+Mouse cuesta $3000
+Teclado cuesta $12000</pre>
+        </div>
+        <p class="small">Escribilo vos. Yo miro y no toco el teclado.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>09 / 32</div></div>
+</section>
+
+
+<!-- ======================= 10 · EV1 — RESOLUCIÓN ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">producto.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 1 · RESOLUCIÓN</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Ejercicio en vivo 1</div>
+      <h2>Resolución</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:30px;flex:1;min-height:0">
+      <div class="code">
+        <div class="bar"><span class="fn">producto.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Producto</span> {
+  <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="pr">precio</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">precio</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+    <span class="k">this</span>.<span class="pr">precio</span> = <span class="pr">precio</span>;
+  }
+
+  <span class="f">mostrarInfo</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} cuesta $${this.precio}`</span>);
+  }
+}
+
+<span class="k">const</span> <span class="pr">producto1</span> = <span class="k">new</span> <span class="cl">Producto</span>(<span class="s">"Mouse"</span>, <span class="n">3000</span>);
+<span class="k">const</span> <span class="pr">producto2</span> = <span class="k">new</span> <span class="cl">Producto</span>(<span class="s">"Teclado"</span>, <span class="n">12000</span>);
+
+<span class="pr">producto1</span>.<span class="f">mostrarInfo</span>();
+<span class="pr">producto2</span>.<span class="f">mostrarInfo</span>();</pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note g">
+          <span class="tag">Lo que ganaste con el constructor</span>
+          <p>Es <b>imposible</b> crear un producto sin precio. El compilador te obliga a pasárselo.</p>
+        </div>
+        <div class="card r">
+          <h3 style="color:var(--red)">Sin constructor</h3>
+          <p style="font-size:22px"><code class="inl">new Producto()</code> te daba un producto con <code class="inl">nombre</code> y <code class="inl">precio</code> en <code class="inl">undefined</code>. Recién te enterabas cuando imprimías:</p>
+          <p style="font-family:var(--font-mono);color:var(--red);margin-top:10px;font-size:20px">undefined cuesta $undefined</p>
+        </div>
+        <div class="note">
+          <span class="tag">El hilo de toda la materia</span>
+          <p>Cada vez que puedas mover un error de <b>runtime</b> a <b>"no compila"</b>, hacelo.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>10 / 32</div></div>
+</section>
+
+
+<!-- ======================= 11 · ENCAPSULAMIENTO — PROBLEMA ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">cuenta.ts</div>
+    <div class="breadcrumb">ENCAPSULAMIENTO</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Encapsulamiento</div>
+      <h2>El problema</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="code">
+        <div class="bar"><span class="fn">cuenta.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">CuentaBancaria</span> {
+  <span class="pr">titular</span>: <span class="n">string</span>;
+  <span class="pr">saldo</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">titular</span>: <span class="n">string</span>, <span class="pr">saldoInicial</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">titular</span> = <span class="pr">titular</span>;
+    <span class="k">this</span>.<span class="pr">saldo</span> = <span class="pr">saldoInicial</span>;
+  }
+
+  <span class="f">depositar</span>(<span class="pr">monto</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">this</span>.<span class="pr">saldo</span> += <span class="pr">monto</span>;
+  }
+}
+
+<span class="k">const</span> <span class="pr">cuenta</span> = <span class="k">new</span> <span class="cl">CuentaBancaria</span>(<span class="s">"Trinidad"</span>, <span class="n">1000</span>);</pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <p class="lead">La clase está <b>bien escrita</b>.</p>
+        <ul class="bullets">
+          <li>Tiene constructor ✓</li>
+          <li>Tiene método ✓</li>
+          <li>Valida... ✓?</li>
+        </ul>
+        <div class="note r">
+          <span class="tag">Y sin embargo…</span>
+          <p>Hay un agujero. Uno grande.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>11 / 32</div></div>
+</section>
+
+
+<!-- ======================= 12 · RAZONÁ — EL AGUJERO ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">cuenta.ts</div>
+    <div class="breadcrumb">RAZONÁ</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker red"><span class="c">//</span> Razoná</div>
+      <h2>El agujero</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="stack">
+        <p class="lead">Con esa clase, cualquiera puede escribir esto:</p>
+        <div class="code">
+          <div class="bar"><span class="fn">desde afuera</span></div>
+<pre><span class="bad"><span class="pr">cuenta</span>.<span class="pr">saldo</span> = <span class="n">-99999</span>;</span>
+<span class="bad"><span class="pr">cuenta</span>.<span class="pr">saldo</span> = <span class="n">999999999</span>;</span>
+<span class="bad"><span class="pr">cuenta</span>.<span class="pr">titular</span> = <span class="s">"Otro"</span>;</span></pre>
+        </div>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note r">
+          <span class="tag">Tres preguntas</span>
+          <ol class="nums" style="margin-top:6px">
+            <li>¿Por qué el lenguaje se lo permite?</li>
+            <li>¿De qué sirvió el método <code class="inl">depositar()</code> si podés tocar el saldo directamente?</li>
+            <li>¿Cómo lo impedirías?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a3">Ver respuesta <span class="hint">(pensala antes)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a3">
+    <div class="ahead"><div class="atag">Respuesta</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <div class="grid3" style="gap:22px">
+        <div class="card r">
+          <h3 style="color:var(--red)">1 · Por qué</h3>
+          <p style="font-size:22px">Los atributos son <b>públicos por defecto</b>. Si no decís nada, cualquiera desde afuera puede <b>leerlos y escribirlos</b>.</p>
+        </div>
+        <div class="card a">
+          <h3 style="color:var(--amber)">2 · De nada sirvió</h3>
+          <p style="font-size:22px"><code class="inl">depositar()</code> era la <b>puerta</b>, pero dejaste la <b>ventana abierta</b>. Las validaciones adentro del método son inútiles si el atributo se modifica por el costado.</p>
+        </div>
+        <div class="card g">
+          <h3 style="color:var(--green)">3 · Cómo se arregla</h3>
+          <p style="font-size:22px">Haciendo el atributo <code class="inl">private</code>. La <b>única</b> forma de modificarlo pasa a ser los métodos que vos escribiste — que <b>sí</b> validan.</p>
+        </div>
+      </div>
+
+      <div class="note g">
+        <span class="tag">Eso es el encapsulamiento</span>
+        <p class="big">No es "esconder por esconder". Es <b>elegir qué puertas dejás abiertas</b>, para poder controlar lo que entra por ellas.</p>
+      </div>
+
+      <div class="note">
+        <span class="tag">La pregunta que te hacés al diseñar cualquier clase</span>
+        <p class="big">¿Qué debería poder hacer alguien que use esta clase <b>desde afuera</b>?<br>
+        <span style="color:var(--dim)">Todo lo demás, privado.</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>12 / 32</div></div>
+</section>
+
+
+<!-- ======================= 13 · VISIBILIDAD (ILUSTRACIÓN) ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">cuenta.ts</div>
+    <div class="breadcrumb">CONCEPTO</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Concepto</div>
+      <h2>Los tres niveles de visibilidad</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:40px;flex:1;min-height:0;align-items:center">
+
+      <!-- ILUSTRACIÓN: círculos concéntricos + persona que rebota -->
+      <div class="viz-rings">
+        <svg viewBox="0 0 560 460" style="width:100%;height:auto;max-height:660px">
+          <!-- public -->
+          <circle cx="300" cy="230" r="200" fill="rgba(63,185,80,.07)" stroke="#3fb950" stroke-width="2" stroke-dasharray="7 6"/>
+          <text x="300" y="62" fill="#3fb950" font-family="'JetBrains Mono',monospace" font-size="21" text-anchor="middle" font-weight="700">public</text>
+          <text x="300" y="86" fill="#3fb950" font-family="'JetBrains Mono',monospace" font-size="15" text-anchor="middle" opacity=".8">todo el mundo</text>
+
+          <!-- protected -->
+          <circle cx="300" cy="248" r="132" fill="rgba(210,153,34,.10)" stroke="#d29922" stroke-width="2.5"/>
+          <text x="300" y="150" fill="#d29922" font-family="'JetBrains Mono',monospace" font-size="20" text-anchor="middle" font-weight="700">protected</text>
+          <text x="300" y="172" fill="#d29922" font-family="'JetBrains Mono',monospace" font-size="14" text-anchor="middle" opacity=".85">yo y mis hijas</text>
+
+          <!-- private -->
+          <circle cx="300" cy="278" r="72" fill="rgba(248,81,73,.20)" stroke="#f85149" stroke-width="3"/>
+          <text x="300" y="272" fill="#f85149" font-family="'JetBrains Mono',monospace" font-size="19" text-anchor="middle" font-weight="700">private</text>
+          <text x="300" y="296" fill="#f85149" font-family="'JetBrains Mono',monospace" font-size="14" text-anchor="middle" opacity=".9">solo yo</text>
+
+          <!-- persona afuera -->
+          <g transform="translate(38,196)">
+            <circle cx="0" cy="0" r="15" fill="#8b949e"/>
+            <path d="M0 18 L0 56 M0 30 L-17 46 M0 30 L17 46 M0 56 L-14 84 M0 56 L14 84"
+                  stroke="#8b949e" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          </g>
+
+          <!-- flecha que ENTRA a public (verde, ok) -->
+          <g stroke="#3fb950" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M76 168 C 120 130, 160 104, 196 92"/>
+            <path d="M178 88 L200 90 L188 108"/>
+          </g>
+          <text x="206" y="116" fill="#3fb950" font-family="'JetBrains Mono',monospace" font-size="14">entra ✓</text>
+
+          <!-- flecha que REBOTA contra private (roja) -->
+          <g stroke="#f85149" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M76 246 C 130 262, 176 276, 224 280"/>
+            <path d="M214 268 L228 281 L212 292"/>
+            <!-- chispa de rebote -->
+            <path d="M236 262 L250 250 M240 280 L258 280 M236 298 L250 310" stroke-width="3.5"/>
+          </g>
+          <text x="84" y="222" fill="#f85149" font-family="'JetBrains Mono',monospace" font-size="14">rebota ✗</text>
+        </svg>
+      </div>
+
+      <!-- tabla -->
+      <div class="stack">
+        <table>
+          <thead><tr><th>Modificador</th><th>¿Quién puede acceder?</th></tr></thead>
+          <tbody>
+            <tr><td class="mono" style="color:var(--green)">public</td><td>Cualquiera. Es el <b>default</b> si no ponés nada.</td></tr>
+            <tr><td class="mono" style="color:var(--red)">private</td><td><b>Solo</b> la propia clase.</td></tr>
+            <tr><td class="mono" style="color:var(--amber)">protected</td><td>La clase <b>y sus subclases</b>.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note g">
+          <span class="tag">Convención</span>
+          <p>Los atributos van <code class="inl">private</code> (o <code class="inl">protected</code>) salvo que tengas una razón para lo contrario.<br>
+          <b>Empezás cerrando, y abrís solo lo que hace falta.</b></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>13 / 32</div></div>
+</section>
+
+
+<!-- ======================= 14 · GETTERS Y SETTERS ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">producto.ts</div>
+    <div class="breadcrumb">CONCEPTO</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Concepto</div>
+      <h2>Getters y setters</h2>
+    </div>
+
+    <div class="grid2 wide-l reveal" style="gap:32px;flex:1;min-height:0">
+      <div class="code sm">
+        <div class="bar"><span class="fn">producto.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Producto</span> {
+  <span class="k">private</span> <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="k">private</span> <span class="pr">precio</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">precio</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+    <span class="k">this</span>.<span class="f">setPrecio</span>(<span class="pr">precio</span>);  <span class="c">// valido desde el arranque</span>
+  }
+
+  <span class="c">// GETTER: leer</span>
+  <span class="f">getPrecio</span>(): <span class="n">number</span> {
+    <span class="k">return</span> <span class="k">this</span>.<span class="pr">precio</span>;
+  }
+
+  <span class="c">// SETTER: escribir, pero con REGLAS</span>
+  <span class="f">setPrecio</span>(<span class="pr">nuevoPrecio</span>: <span class="n">number</span>): <span class="n">void</span> {
+<span class="good">    <span class="k">if</span> (<span class="pr">nuevoPrecio</span> &lt;= <span class="n">0</span>) {
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"El precio debe ser mayor a 0"</span>);
+      <span class="k">return</span>;   <span class="c">// no asigna: el objeto queda intacto</span>
+    }</span>
+    <span class="k">this</span>.<span class="pr">precio</span> = <span class="pr">nuevoPrecio</span>;
+  }
+}</pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <p class="lead">Si el atributo es privado, ¿cómo lo leo y lo modifico desde afuera?</p>
+        <p class="dim">Con <b>métodos públicos</b> que vos controlás.</p>
+
+        <div class="note r">
+          <span class="tag">El setter no es un trámite</span>
+          <p>Un setter que solo hace <code class="inl">this.precio = precio</code> <b>no sirve para nada</b>: es un atributo público con pasos extra.</p>
+          <p style="margin-top:12px"><b>El setter existe para validar.</b></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>14 / 32</div></div>
+</section>
+
+
+<!-- ======================= 15 · EV2 — CONSIGNA ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">cuenta.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 2</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Ejercicio en vivo 2</div>
+      <h2><span class="accent">CuentaBancaria</span> blindada</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <p style="font-size:26px">Reescribí la <code class="inl">CuentaBancaria</code> para que esto sea <b>imposible</b>:</p>
+        <div class="code sm" style="margin:16px 0">
+<pre><span class="bad"><span class="pr">cuenta</span>.<span class="pr">saldo</span> = <span class="n">-99999</span>;</span></pre>
+        </div>
+        <ul>
+          <li><code>titular</code> y <code>saldo</code>: <b>privados</b></li>
+          <li>Un getter para el saldo</li>
+          <li><b>Ningún setter de saldo</b></li>
+        </ul>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note">
+          <span class="tag">El saldo solo se mueve con</span>
+          <p><code class="inl">depositar(monto)</code><br><span class="small">→ el monto debe ser positivo</span></p>
+          <p style="margin-top:16px"><code class="inl">extraer(monto)</code><br><span class="small">→ el monto debe ser positivo <b>y</b> no puede superar el saldo</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>15 / 32</div></div>
+</section>
+
+
+<!-- ======================= 16 · EV2 — RESOLUCIÓN ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">cuenta.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 2 · RESOLUCIÓN</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Ejercicio en vivo 2</div>
+      <h2>Resolución</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:28px;flex:1;min-height:0">
+      <div class="code xs">
+        <div class="bar"><span class="fn">cuenta.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">CuentaBancaria</span> {
+  <span class="k">private</span> <span class="pr">titular</span>: <span class="n">string</span>;
+  <span class="k">private</span> <span class="pr">saldo</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">titular</span>: <span class="n">string</span>, <span class="pr">saldoInicial</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">titular</span> = <span class="pr">titular</span>;
+    <span class="k">this</span>.<span class="pr">saldo</span> = <span class="n">0</span>;
+<span class="good">    <span class="k">this</span>.<span class="f">depositar</span>(<span class="pr">saldoInicial</span>);  <span class="c">// ni el constructor se saltea la validación</span></span>
+  }
+
+  <span class="f">getSaldo</span>(): <span class="n">number</span> { <span class="k">return</span> <span class="k">this</span>.<span class="pr">saldo</span>; }
+
+  <span class="c">// No hay setSaldo(). A propósito.</span>
+
+  <span class="f">depositar</span>(<span class="pr">monto</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="pr">monto</span> &lt;= <span class="n">0</span>) { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"El monto debe ser positivo."</span>); <span class="k">return</span>; }
+    <span class="k">this</span>.<span class="pr">saldo</span> += <span class="pr">monto</span>;
+  }
+
+  <span class="f">extraer</span>(<span class="pr">monto</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="pr">monto</span> &lt;= <span class="n">0</span>) { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"El monto debe ser positivo."</span>); <span class="k">return</span>; }
+    <span class="k">if</span> (<span class="pr">monto</span> &gt; <span class="k">this</span>.<span class="pr">saldo</span>) { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"Saldo insuficiente."</span>); <span class="k">return</span>; }
+    <span class="k">this</span>.<span class="pr">saldo</span> -= <span class="pr">monto</span>;
+  }
+}
+
+<span class="k">const</span> <span class="pr">cuenta</span> = <span class="k">new</span> <span class="cl">CuentaBancaria</span>(<span class="s">"Trinidad"</span>, <span class="n">1000</span>);
+<span class="c">// cuenta.saldo = -99999;  ← ❌ Error: 'saldo' is private</span></pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note g">
+          <span class="tag">Decisión 1 · No hay setSaldo()</span>
+          <p>No es un olvido. El saldo <b>no es algo que se setea</b>: es algo que <b>resulta</b> de depositar y extraer.</p>
+          <p style="margin-top:12px">Un setter lo convertiría otra vez en un atributo público con más pasos.</p>
+        </div>
+
+        <div class="note">
+          <span class="tag">Decisión 2 · El constructor llama a depositar()</span>
+          <p>Si alguien intenta abrir una cuenta con saldo inicial <code class="inl">-500</code>, la validación <b>también</b> lo frena.</p>
+          <p style="margin-top:12px">Ni siquiera el constructor tiene permiso de saltearse las reglas de la clase.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>16 / 32</div></div>
+</section>
+
+
+<!-- ======================= 17 · HERENCIA — EL PROBLEMA ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">animal.ts</div>
+    <div class="breadcrumb">HERENCIA</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Herencia</div>
+      <h2>El problema que resuelve</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:26px;flex:1;min-height:0">
+      <div class="code sm">
+        <div class="bar"><span class="fn">perro.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Perro</span> {
+  <span class="k">private</span> <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="k">private</span> <span class="pr">energia</span>: <span class="n">number</span> = <span class="n">100</span>;
+
+<span class="bad">  <span class="f">comer</span>():  <span class="n">void</span> { <span class="k">this</span>.<span class="pr">energia</span> += <span class="n">20</span>; }
+  <span class="f">dormir</span>(): <span class="n">void</span> { <span class="k">this</span>.<span class="pr">energia</span> += <span class="n">30</span>; }</span>
+  <span class="f">ladrar</span>(): <span class="n">void</span> { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"Guau"</span>); }
+}</pre>
+      </div>
+
+      <div class="code sm">
+        <div class="bar"><span class="fn">gato.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Gato</span> {
+  <span class="k">private</span> <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="k">private</span> <span class="pr">energia</span>: <span class="n">number</span> = <span class="n">100</span>;
+
+<span class="bad">  <span class="f">comer</span>():   <span class="n">void</span> { <span class="k">this</span>.<span class="pr">energia</span> += <span class="n">20</span>; }
+  <span class="f">dormir</span>():  <span class="n">void</span> { <span class="k">this</span>.<span class="pr">energia</span> += <span class="n">30</span>; }</span>
+  <span class="f">maullar</span>(): <span class="n">void</span> { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"Miau"</span>); }
+}</pre>
+      </div>
+    </div>
+
+    <div class="note r reveal" style="margin-top:24px;margin-bottom:24px">
+      <span class="tag">La duplicación</span>
+      <p><code class="inl">comer()</code> y <code class="inl">dormir()</code> están escritos <b>dos veces, idénticos</b>. Si mañana comer suma 25 en vez de 20, tenés que acordarte de cambiarlo en los dos lados. <b>Y no te vas a acordar.</b></p>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>17 / 32</div></div>
+</section>
+
+
+<!-- ======================= 18 · EXTENDS Y SUPER ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">animal.ts</div>
+    <div class="breadcrumb">HERENCIA</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Herencia</div>
+      <h2><code>extends</code> <span style="color:var(--dim)">y</span> <code>super()</code></h2>
+    </div>
+
+    <div class="grid2 wide-l reveal" style="gap:30px;flex:1;min-height:0">
+      <div class="code sm">
+        <div class="bar"><span class="fn">animal.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Animal</span> {
+  <span class="k">protected</span> <span class="pr">nombre</span>: <span class="n">string</span>;    <span class="c">// las hijas lo necesitan</span>
+  <span class="k">protected</span> <span class="pr">energia</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+    <span class="k">this</span>.<span class="pr">energia</span> = <span class="n">100</span>;
+  }
+
+  <span class="f">comer</span>():  <span class="n">void</span> { <span class="k">this</span>.<span class="pr">energia</span> += <span class="n">20</span>; }
+  <span class="f">dormir</span>(): <span class="n">void</span> { <span class="k">this</span>.<span class="pr">energia</span> += <span class="n">30</span>; }
+}
+
+<span class="k">class</span> <span class="cl">Perro</span> <span class="k">extends</span> <span class="cl">Animal</span> {
+  <span class="k">private</span> <span class="pr">raza</span>: <span class="n">string</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">raza</span>: <span class="n">string</span>) {
+<span class="good">    <span class="k">super</span>(<span class="pr">nombre</span>);      <span class="c">// ← OBLIGATORIO y PRIMERO</span></span>
+    <span class="k">this</span>.<span class="pr">raza</span> = <span class="pr">raza</span>;   <span class="c">// después, lo mío</span>
+  }
+
+  <span class="f">ladrar</span>(): <span class="n">void</span> { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre}: Guau`</span>); }
+}
+
+<span class="k">const</span> <span class="pr">perro</span> = <span class="k">new</span> <span class="cl">Perro</span>(<span class="s">"Fido"</span>, <span class="s">"Labrador"</span>);
+<span class="pr">perro</span>.<span class="f">comer</span>();     <span class="c">// heredado de Animal</span>
+<span class="pr">perro</span>.<span class="f">ladrar</span>();    <span class="c">// propio de Perro</span></pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note g">
+          <span class="tag">Lo que resuelve</span>
+          <p>La herencia te deja escribir lo común <b>una sola vez</b>, en una clase padre.</p>
+        </div>
+        <div class="note">
+          <span class="tag">super()</span>
+          <p><code class="inl">super(nombre)</code> es el llamado al <b>constructor del padre</b>.</p>
+          <p style="margin-top:12px"><b>Va primero, siempre.</b> El padre se inicializa antes que la hija.</p>
+        </div>
+        <div class="card a">
+          <h3 style="color:var(--amber)">¿Por qué <code class="inl">protected</code>?</h3>
+          <p style="font-size:22px">Si <code class="inl">nombre</code> fuera <code class="inl">private</code>, <code class="inl">Perro</code> no podría usarlo para ladrar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>18 / 32</div></div>
+</section>
+
+
+<!-- ======================= 19 · CHECKPOINT — ES UN / TIENE UN ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">animal.ts</div>
+    <div class="breadcrumb">CHECKPOINT</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Checkpoint</div>
+      <h2>¿<span class="accent">"es un"</span> o <span class="amber">"tiene un"</span>?</h2>
+    </div>
+
+    <div class="reveal" style="margin-bottom:22px">
+      <p class="lead">La herencia se usa cuando podés decir <b>"B es un A"</b>. Si no podés, la herencia es la <b>herramienta equivocada</b>.</p>
+    </div>
+
+    <div class="grid2 reveal" style="gap:26px;flex:1;min-height:0">
+      <div class="note">
+        <span class="tag">Para cada par, decidí si corresponde herencia</span>
+        <ol class="nums" style="margin-top:10px">
+          <li><code class="inl">Perro</code> y <code class="inl">Animal</code></li>
+          <li><code class="inl">Auto</code> y <code class="inl">Motor</code></li>
+          <li><code class="inl">Gerente</code> y <code class="inl">Empleado</code></li>
+          <li><code class="inl">Persona</code> y <code class="inl">Dirección</code></li>
+          <li><code class="inl">CajaDeAhorro</code> y <code class="inl">Cuenta</code></li>
+        </ol>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="code sm">
+          <div class="bar"><span class="fn">el test</span></div>
+<pre><span class="c">// Decilo en voz alta:</span>
+
+<span class="s">"Un ____ ES UN ____"</span>
+
+<span class="c">// ¿Suena bien?  → herencia</span>
+<span class="c">// ¿Suena raro?  → NO es herencia</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a4">Ver respuesta <span class="hint">(pensala antes)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a4">
+    <div class="ahead"><div class="atag">Respuesta</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <table class="sm">
+        <thead><tr><th style="width:24%">Par</th><th style="width:16%">¿Herencia?</th><th>El test de la frase</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">Perro / Animal</td><td class="yes">✓ Sí</td><td>"Un perro <b>es un</b> animal" ✔</td></tr>
+          <tr><td class="mono">Auto / Motor</td><td class="no">✗ No</td><td>"Un auto <b>es un</b> motor" ✘ — un auto <b>TIENE</b> un motor</td></tr>
+          <tr><td class="mono">Gerente / Empleado</td><td class="yes">✓ Sí</td><td>"Un gerente <b>es un</b> empleado" ✔</td></tr>
+          <tr><td class="mono">Persona / Dirección</td><td class="no">✗ No</td><td>"Una persona <b>es una</b> dirección" ✘ — la <b>TIENE</b></td></tr>
+          <tr><td class="mono">CajaDeAhorro / Cuenta</td><td class="yes">✓ Sí</td><td>"Una caja de ahorro <b>es una</b> cuenta" ✔</td></tr>
+        </tbody>
+      </table>
+
+      <div class="grid2" style="gap:24px">
+        <div class="note r">
+          <span class="tag">El error clásico</span>
+          <p>Heredar solo para <b>reutilizar código</b>, sin que haya relación lógica.</p>
+          <p style="margin-top:12px">Si <code class="inl">Auto extends Motor</code> te "ahorra" escribir <code class="inl">encender()</code>, <b>igual está mal</b>: el día que necesites un auto con dos motores, o un motor sin auto, todo el diseño se cae.</p>
+        </div>
+        <div class="note">
+          <span class="tag">Y los "tiene un"</span>
+          <p>Los casos de <b>"tiene un"</b> se resuelven con <b>otra herramienta</b>, que vemos más adelante.</p>
+          <p style="margin-top:12px;color:var(--dim)">Anotá la pregunta. Vuelve en la clase 5.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>19 / 32</div></div>
+</section>
+
+
+<!-- ======================= 20 · EV3 — CONSIGNA ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">vehiculo.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 3</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Ejercicio en vivo 3</div>
+      <h2>Jerarquía de vehículos</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <p style="font-size:26px">Armá esta jerarquía:</p>
+        <ul>
+          <li><code>Vehiculo</code>: <code>marca</code> y <code>velocidadMaxima</code>, más un método <code>describirse()</code></li>
+          <li><code>Auto extends Vehiculo</code>: agrega <code>cantidadPuertas</code></li>
+          <li><code>Moto extends Vehiculo</code>: agrega <code>tieneSidecar: boolean</code></li>
+        </ul>
+        <p style="font-size:26px;margin-top:18px">Cada subclase con su propio constructor, que llame a <code class="inl">super()</code>.</p>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note">
+          <span class="tag">Antes de escribir, contestá</span>
+          <p class="big" style="font-size:29px">¿<code class="inl">marca</code> va <code class="inl">private</code> o <code class="inl">protected</code>?</p>
+          <p style="margin-top:14px;color:var(--dim)">¿Por qué?</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>20 / 32</div></div>
+</section>
+
+
+<!-- ======================= 21 · EV3 — RESOLUCIÓN ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">vehiculo.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 3 · RESOLUCIÓN</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Ejercicio en vivo 3</div>
+      <h2>Resolución</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:28px;flex:1;min-height:0">
+      <div class="code xs">
+        <div class="bar"><span class="fn">vehiculo.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Vehiculo</span> {
+<span class="good">  <span class="k">protected</span> <span class="pr">marca</span>: <span class="n">string</span>;              <span class="c">// protected, NO private</span></span>
+  <span class="k">protected</span> <span class="pr">velocidadMaxima</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">marca</span>: <span class="n">string</span>, <span class="pr">velocidadMaxima</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">marca</span> = <span class="pr">marca</span>;
+    <span class="k">this</span>.<span class="pr">velocidadMaxima</span> = <span class="pr">velocidadMaxima</span>;
+  }
+
+  <span class="f">describirse</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.marca} — máx ${this.velocidadMaxima} km/h`</span>);
+  }
+}
+
+<span class="k">class</span> <span class="cl">Auto</span> <span class="k">extends</span> <span class="cl">Vehiculo</span> {
+  <span class="k">private</span> <span class="pr">cantidadPuertas</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">marca</span>: <span class="n">string</span>, <span class="pr">vMax</span>: <span class="n">number</span>, <span class="pr">cantidadPuertas</span>: <span class="n">number</span>) {
+    <span class="k">super</span>(<span class="pr">marca</span>, <span class="pr">vMax</span>);
+    <span class="k">this</span>.<span class="pr">cantidadPuertas</span> = <span class="pr">cantidadPuertas</span>;
+  }
+}
+
+<span class="k">class</span> <span class="cl">Moto</span> <span class="k">extends</span> <span class="cl">Vehiculo</span> {
+  <span class="k">private</span> <span class="pr">tieneSidecar</span>: <span class="n">boolean</span>;
+
+  <span class="k">constructor</span>(<span class="pr">marca</span>: <span class="n">string</span>, <span class="pr">vMax</span>: <span class="n">number</span>, <span class="pr">tieneSidecar</span>: <span class="n">boolean</span>) {
+    <span class="k">super</span>(<span class="pr">marca</span>, <span class="pr">vMax</span>);
+    <span class="k">this</span>.<span class="pr">tieneSidecar</span> = <span class="pr">tieneSidecar</span>;
+  }
+}</pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note g">
+          <span class="tag">La pregunta: private o protected</span>
+          <p>Va <b><code class="inl">protected</code></b>. Si <code class="inl">marca</code> fuera <code class="inl">private</code>, <b>solo <code class="inl">Vehiculo</code></b> podría leerla — ni <code class="inl">Auto</code> ni <code class="inl">Moto</code>.</p>
+        </div>
+
+        <div class="card b">
+          <h3>El matiz</h3>
+          <p style="font-size:22px">En este ejemplo puntual <b>zafás igual</b>, porque <code class="inl">describirse()</code> está en el padre y es él quien la lee.</p>
+          <p style="font-size:22px;margin-top:10px">Pero en cuanto <code class="inl">Auto</code> quiera hacer algo con <code class="inl">this.marca</code>, <code class="inl">private</code> te frena.</p>
+        </div>
+
+        <div class="note">
+          <span class="tag">La regla</span>
+          <p><code class="inl">private</code> mientras alcance.<br>
+             <code class="inl">protected</code> cuando las hijas realmente lo necesiten.<br>
+             <b>Nunca <code class="inl">public</code> por defecto.</b></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>21 / 32</div></div>
+</section>
+
+
+<!-- ======================= 22 · EV4 — CONSIGNA (BUG) ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">empleado.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 4</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker red"><span class="c">//</span> Ejercicio en vivo 4</div>
+      <h2>El bug de visibilidad</h2>
+    </div>
+
+    <div class="grid2 wide-l reveal" style="gap:30px;flex:1;min-height:0">
+      <div class="code sm">
+        <div class="bar"><span class="fn">empleado.ts</span> <span style="color:var(--red);margin-left:auto">✕ no compila</span></div>
+<pre><span class="k">class</span> <span class="cl">Empleado</span> {
+  <span class="k">private</span> <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="k">private</span> <span class="pr">sueldo</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">sueldo</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+    <span class="k">this</span>.<span class="pr">sueldo</span> = <span class="pr">sueldo</span>;
+  }
+}
+
+<span class="k">class</span> <span class="cl">Gerente</span> <span class="k">extends</span> <span class="cl">Empleado</span> {
+  <span class="k">private</span> <span class="pr">bono</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">sueldo</span>: <span class="n">number</span>, <span class="pr">bono</span>: <span class="n">number</span>) {
+    <span class="k">super</span>(<span class="pr">nombre</span>, <span class="pr">sueldo</span>);
+    <span class="k">this</span>.<span class="pr">bono</span> = <span class="pr">bono</span>;
+  }
+
+  <span class="f">mostrarSueldoTotal</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} cobra ${this.sueldo + this.bono}`</span>);
+  }
+}</pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="consigna">
+          <span class="tag">Consigna</span>
+          <p style="font-size:26px">Este código <b>no compila</b>.</p>
+          <ul style="margin-top:14px">
+            <li>Encontrá el error</li>
+            <li>Explicá <b>por qué</b></li>
+            <li>Arreglalo</li>
+          </ul>
+        </div>
+        <p class="small">Pista: la respuesta está en una sola palabra, repetida dos veces.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>22 / 32</div></div>
+</section>
+
+
+<!-- ======================= 23 · EV4 — RESOLUCIÓN ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">empleado.ts</div>
+    <div class="breadcrumb">EJERCICIO EN VIVO 4 · RESOLUCIÓN</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker red"><span class="c">//</span> Ejercicio en vivo 4</div>
+      <h2>Resolución</h2>
+    </div>
+
+    <div class="reveal" style="margin-bottom:22px">
+      <div class="out">
+        <div><span class="p">$</span> npx tsc</div>
+        <div class="err">Property 'nombre' is private and only accessible within class 'Empleado'.</div>
+      </div>
+    </div>
+
+    <div class="grid2 reveal" style="gap:28px;flex:1;min-height:0">
+      <div class="stack">
+        <div class="note r">
+          <span class="tag">El error</span>
+          <p><code class="inl">Gerente</code> intenta leer <code class="inl">this.nombre</code> y <code class="inl">this.sueldo</code>, pero en <code class="inl">Empleado</code> están declarados <code class="inl">private</code>.</p>
+        </div>
+        <div class="card r">
+          <h3 style="color:var(--red)">Por qué</h3>
+          <p style="font-size:23px"><code class="inl">private</code> significa <b>"solo yo"</b> — y "yo" es <b>la clase</b>, no la familia.</p>
+          <p style="font-size:23px;margin-top:12px">Una subclase <b>no es "yo"</b>. Aunque <code class="inl">Gerente</code> herede de <code class="inl">Empleado</code>, no tiene permiso para meter la mano en sus atributos privados.</p>
+        </div>
+        <div class="code sm">
+          <div class="bar"><span class="fn">el arreglo</span></div>
+<pre><span class="k">class</span> <span class="cl">Empleado</span> {
+<span class="good">  <span class="k">protected</span> <span class="pr">nombre</span>: <span class="n">string</span>;   <span class="c">// ✅ "yo Y MIS HIJAS"</span>
+  <span class="k">protected</span> <span class="pr">sueldo</span>: <span class="n">number</span>;   <span class="c">// ✅</span></span>
+}</pre>
+        </div>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note">
+          <span class="tag">⚠ Ojo con la conclusión fácil</span>
+          <p class="big">La lección <b>NO</b> es "poné todo <code class="inl">protected</code> por las dudas".</p>
+          <p style="margin-top:14px"><code class="inl">protected</code> sigue siendo <b>una puerta</b>: se la estás abriendo a todas las subclases presentes <b>y futuras</b>.</p>
+        </div>
+
+        <div class="note g">
+          <span class="tag">La lección de verdad</span>
+          <p class="big"><code class="inl">private</code> por defecto, y lo abrís a <code class="inl">protected</code> cuando <b>el compilador te demuestra</b> que hace falta — como acaba de pasar acá.</p>
+          <p style="margin-top:14px">Que el código te <b>pida</b> permiso, no que vos se lo <b>regales</b> por adelantado.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> en vivo</div><div>23 / 32</div></div>
+</section>
+
+
+<!-- ======================= 24 · RECAP ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">repaso.ts</div>
+    <div class="breadcrumb">RECAP</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Recap</div>
+      <h2>Lo de hoy</h2>
+    </div>
+
+    <div class="reveal" style="flex:1;min-height:0">
+      <table class="sm">
+        <thead><tr><th style="width:27%">Concepto</th><th>En una línea</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">Clase / Objeto</td><td>El molde y la cosa. Una clase, muchos objetos <b>independientes</b>.</td></tr>
+          <tr><td class="mono">Atributos / Métodos</td><td>Qué <b>es</b> el objeto / qué <b>hace</b> el objeto.</td></tr>
+          <tr><td class="mono">this</td><td>"Yo mismo". Distingue el <b>atributo</b> del <b>parámetro</b>.</td></tr>
+          <tr><td class="mono">Constructor</td><td>El objeto nace <b>completo</b>. Imposible olvidarse un dato.</td></tr>
+          <tr><td class="mono">Encapsulamiento</td><td>Cerrás las <b>ventanas</b> para que todos entren por la <b>puerta</b>.</td></tr>
+          <tr><td class="mono">Getter / Setter</td><td>Un setter <b>sin validación</b> no sirve para nada.</td></tr>
+          <tr><td class="mono">Herencia</td><td>Lo común, escrito <b>una sola vez</b>. Solo si vale el <b>"es un"</b>.</td></tr>
+          <tr><td class="mono">super()</td><td>El padre se inicializa <b>primero</b>. Siempre.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note g reveal" style="margin-bottom:24px">
+      <span class="tag">El hilo que las conecta a todas</span>
+      <p class="big">Cada una de estas herramientas existe para que <b>el compilador te frene antes</b> de que el error llegue a ejecutarse.</p>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> repaso</div><div>24 / 32</div></div>
+</section>
+
+
+<!-- ======================= 25 · DESPUÉS DE CLASE ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">tarea.ts</div>
+    <div class="breadcrumb">DESPUÉS DE CLASE</div>
+  </div>
+
+  <div class="body" style="justify-content:center;align-items:flex-start">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Después de clase</div>
+      <h1 style="font-size:88px;margin-bottom:32px">Seis ejercicios</h1>
+    </div>
+
+    <div class="note r reveal" style="max-width:1300px">
+      <span class="tag">La única regla</span>
+      <p class="big" style="font-size:32px">Intentá cada uno <b>antes</b> de abrir la respuesta.</p>
+      <p style="margin-top:14px;font-size:27px">Si mirás primero, no sirvió de nada. La respuesta se entiende al leerla — pero entenderla <b>no es lo mismo</b> que poder escribirla, y en el parcial te van a pedir escribirla.</p>
+    </div>
+
+    <div class="pills reveal" style="margin-top:38px">
+      <div class="pill g">1 · Usuario con contraseña</div>
+      <div class="pill">2 · Termostato</div>
+      <div class="pill">3 · Detectá los errores</div>
+      <div class="pill">4 · Jerarquía de empleados</div>
+      <div class="pill">5 · Variables sueltas vs objetos</div>
+      <div class="pill">6 · Biblioteca</div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> tarea</div><div>25 / 32</div></div>
+</section>
+
+
+<!-- ======================= 26 · TAREA 1 ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">tarea.ts</div>
+    <div class="breadcrumb">TAREA · 1 DE 6</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Después de clase · Ejercicio 1</div>
+      <h2>Usuario con contraseña</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <p style="font-size:26px">Creá una clase <code class="inl">Usuario</code> con:</p>
+        <ul>
+          <li><code>nombre</code> y <code>email</code> → públicos</li>
+          <li><code>contrasenia</code> → <b>privada</b></li>
+          <li><code>mostrarInfo()</code> → muestra nombre y email (nunca la contraseña)</li>
+          <li><code>login(pass)</code> → devuelve <code>true</code> si la contraseña es correcta</li>
+        </ul>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note r">
+          <span class="tag">Requisito</span>
+          <p class="big">Debe ser <b>imposible</b> leer la contraseña desde afuera de la clase.</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a5">Ver respuesta <span class="hint">(intentalo primero)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a5">
+    <div class="ahead"><div class="atag">Respuesta · Ejercicio 1</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <div class="grid2" style="gap:26px;flex:1;min-height:0">
+        <div class="code xs">
+          <div class="bar"><span class="fn">usuario.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Usuario</span> {
+  <span class="k">public</span> <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="k">public</span> <span class="pr">email</span>: <span class="n">string</span>;
+<span class="good">  <span class="k">private</span> <span class="pr">contrasenia</span>: <span class="n">string</span>;</span>
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">email</span>: <span class="n">string</span>, <span class="pr">contrasenia</span>: <span class="n">string</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+    <span class="k">this</span>.<span class="pr">email</span> = <span class="pr">email</span>;
+    <span class="k">this</span>.<span class="pr">contrasenia</span> = <span class="pr">contrasenia</span>;
+  }
+
+  <span class="f">mostrarInfo</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} — ${this.email}`</span>);
+  }
+
+  <span class="f">login</span>(<span class="pr">pass</span>: <span class="n">string</span>): <span class="n">boolean</span> {
+    <span class="k">if</span> (<span class="pr">pass</span> === <span class="k">this</span>.<span class="pr">contrasenia</span>) {
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"Acceso correcto"</span>);
+      <span class="k">return</span> <span class="k">true</span>;
+    }
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"Contraseña incorrecta"</span>);
+    <span class="k">return</span> <span class="k">false</span>;
+  }
+}
+
+<span class="k">const</span> <span class="pr">u</span> = <span class="k">new</span> <span class="cl">Usuario</span>(<span class="s">"Trini"</span>, <span class="s">"trini@mail.com"</span>, <span class="s">"1234"</span>);
+<span class="pr">u</span>.<span class="f">login</span>(<span class="s">"mal"</span>);    <span class="c">// Contraseña incorrecta</span>
+<span class="pr">u</span>.<span class="f">login</span>(<span class="s">"1234"</span>);   <span class="c">// Acceso correcto</span>
+
+<span class="c">// console.log(u.contrasenia);  ← ❌ 'contrasenia' is private</span></pre>
+        </div>
+
+        <div class="stack" style="justify-content:center">
+          <div class="note r">
+            <span class="tag">Fijate que NO hay getContrasenia()</span>
+            <p>Y no es un olvido. Un getter de contraseña <b>anularía todo el punto</b> del <code class="inl">private</code>: volvés a poder leerla desde afuera, solo que con dos pasos más.</p>
+            <p style="margin-top:12px"><b>Si el dato no debe salir, no le pongas puerta de salida.</b></p>
+          </div>
+
+          <div class="note g">
+            <span class="tag">La idea más útil del encapsulamiento</span>
+            <p>El objeto no te <b>devuelve</b> la contraseña: te <b>contesta una pregunta</b> sobre ella.</p>
+            <p style="margin-top:12px;font-family:var(--font-mono);font-size:21px;color:var(--dim)">"¿esta que te paso es la correcta?" → sí / no</p>
+            <p style="margin-top:12px">La contraseña <b>nunca sale de la clase</b>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> tarea</div><div>26 / 32</div></div>
+</section>
+
+
+<!-- ======================= 27 · TAREA 2 ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">tarea.ts</div>
+    <div class="breadcrumb">TAREA · 2 DE 6</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Después de clase · Ejercicio 2</div>
+      <h2>Termostato</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <p style="font-size:26px">Creá una clase <code class="inl">Termostato</code> con:</p>
+        <ul>
+          <li><code>temperatura</code> → <b>privada</b>, arranca en 22</li>
+          <li><code>getTemperatura()</code></li>
+          <li><code>subir()</code> y <code>bajar()</code> → mueven la temperatura de a 1 grado</li>
+        </ul>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note r">
+          <span class="tag">La regla dura</span>
+          <p class="big">La temperatura <b>nunca</b> puede salir del rango <span class="mark-a">15 – 30</span>.</p>
+          <p style="margin-top:12px">Si se intenta pasar, se avisa y <b>no se cambia nada</b>.</p>
+        </div>
+        <div class="note">
+          <span class="tag">Requisito</span>
+          <p>No debe existir un <b>setter directo</b> de temperatura.</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a6">Ver respuesta <span class="hint">(intentalo primero)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a6">
+    <div class="ahead"><div class="atag">Respuesta · Ejercicio 2</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <div class="grid2" style="gap:26px;flex:1;min-height:0">
+        <div class="code xs">
+          <div class="bar"><span class="fn">termostato.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Termostato</span> {
+  <span class="k">private</span> <span class="pr">temperatura</span>: <span class="n">number</span> = <span class="n">22</span>;
+
+<span class="good">  <span class="k">private</span> <span class="k">readonly</span> <span class="pr">MINIMA</span>: <span class="n">number</span> = <span class="n">15</span>;
+  <span class="k">private</span> <span class="k">readonly</span> <span class="pr">MAXIMA</span>: <span class="n">number</span> = <span class="n">30</span>;</span>
+
+  <span class="f">getTemperatura</span>(): <span class="n">number</span> {
+    <span class="k">return</span> <span class="k">this</span>.<span class="pr">temperatura</span>;
+  }
+
+  <span class="f">subir</span>(): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="k">this</span>.<span class="pr">temperatura</span> &gt;= <span class="k">this</span>.<span class="pr">MAXIMA</span>) {
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`No se puede pasar de ${this.MAXIMA}°`</span>);
+      <span class="k">return</span>;
+    }
+    <span class="k">this</span>.<span class="pr">temperatura</span>++;
+  }
+
+  <span class="f">bajar</span>(): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="k">this</span>.<span class="pr">temperatura</span> &lt;= <span class="k">this</span>.<span class="pr">MINIMA</span>) {
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`No se puede bajar de ${this.MINIMA}°`</span>);
+      <span class="k">return</span>;
+    }
+    <span class="k">this</span>.<span class="pr">temperatura</span>--;
+  }
+}</pre>
+        </div>
+
+        <div class="stack" style="justify-content:center">
+          <div class="note g">
+            <span class="tag">Por qué no hay setter</span>
+            <p>Con un <code class="inl">setTemperatura(t)</code> alguien podría poner <b>500 grados</b> de un saque.</p>
+            <p style="margin-top:12px">Con <code class="inl">subir()</code> y <code class="inl">bajar()</code>, el objeto <b>controla su propio rango</b> y es imposible sacarlo de ahí.</p>
+          </div>
+
+          <div class="note">
+            <span class="tag">La misma idea que el saldo</span>
+            <p class="big">La temperatura <b>no se setea, se mueve</b>. Y quien decide cuánto se puede mover es <b>la clase</b>, no el de afuera.</p>
+          </div>
+
+          <div class="card b">
+            <h3>El extra</h3>
+            <p style="font-size:22px"><code class="inl">MINIMA</code> y <code class="inl">MAXIMA</code> como constantes privadas sacan los <b>números mágicos</b> del medio del código y le ponen <b>nombre a la regla</b>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> tarea</div><div>27 / 32</div></div>
+</section>
+
+
+<!-- ======================= 28 · TAREA 3 ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">tarea.ts</div>
+    <div class="breadcrumb">TAREA · 3 DE 6</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker red"><span class="c">//</span> Después de clase · Ejercicio 3</div>
+      <h2>Detectá los errores</h2>
+    </div>
+
+    <div class="grid2 wide-l reveal" style="gap:30px;flex:1;min-height:0">
+      <div class="code sm">
+        <div class="bar"><span class="fn">producto.ts</span> <span style="color:var(--red);margin-left:auto">4 problemas</span></div>
+<pre><span class="k">class</span> <span class="cl">Producto</span> {
+  <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="pr">precio</span>: <span class="n">number</span>;
+  <span class="pr">stock</span>: <span class="n">number</span>;
+
+  <span class="f">setPrecio</span>(<span class="pr">precio</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">this</span>.<span class="pr">precio</span> = <span class="pr">precio</span>;
+  }
+
+  <span class="f">vender</span>(<span class="pr">cantidad</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">this</span>.<span class="pr">stock</span> = <span class="k">this</span>.<span class="pr">stock</span> - <span class="pr">cantidad</span>;
+  }
+}
+
+<span class="k">const</span> <span class="pr">p</span> = <span class="k">new</span> <span class="cl">Producto</span>();
+<span class="pr">p</span>.<span class="pr">nombre</span> = <span class="s">"Mouse"</span>;
+<span class="pr">p</span>.<span class="pr">precio</span> = <span class="n">-500</span>;
+<span class="pr">p</span>.<span class="pr">stock</span> = <span class="n">10</span>;
+<span class="pr">p</span>.<span class="f">vender</span>(<span class="n">50</span>);</pre>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="consigna">
+          <span class="tag">Consigna</span>
+          <p style="font-size:26px">Este código tiene <b>al menos 4 problemas</b>.</p>
+          <ul style="margin-top:14px">
+            <li>Encontralos</li>
+            <li>Explicá <b>por qué</b> son problemas</li>
+            <li>Reescribilo</li>
+          </ul>
+        </div>
+        <p class="small">Pista: mirá qué valor queda en <code class="inl">stock</code> después de la última línea.</p>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a7">Ver respuesta <span class="hint">(intentalo primero)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a7">
+    <div class="ahead"><div class="atag">Respuesta · Ejercicio 3</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <div class="grid2" style="gap:26px;flex:1;min-height:0">
+        <div class="stack">
+          <div class="card r">
+            <h3 style="color:var(--red)">1 · No hay constructor</h3>
+            <p style="font-size:21px"><code class="inl">new Producto()</code> crea un producto <b>vacío</b>: todo en <code class="inl">undefined</code>. El objeto <b>nace roto</b> y hay que armarlo a mano desde afuera.</p>
+          </div>
+          <div class="card r">
+            <h3 style="color:var(--red)">2 · Atributos públicos</h3>
+            <p style="font-size:21px">Por eso <code class="inl">p.precio = -500</code> funciona sin chistar. El <code class="inl">setPrecio()</code> es <b>decorativo</b>: la ventana está abierta al lado de la puerta.</p>
+          </div>
+          <div class="card r">
+            <h3 style="color:var(--red)">3 · El setter no valida</h3>
+            <p style="font-size:21px">Acepta <code class="inl">-500</code>, acepta <code class="inl">0</code>. <b>Un setter sin validación es un atributo público con pasos extra.</b></p>
+          </div>
+          <div class="card r">
+            <h3 style="color:var(--red)">4 · vender() no controla el stock</h3>
+            <p style="font-size:21px"><code class="inl">p.vender(50)</code> con stock 10 deja el stock en <b style="color:var(--red)">-40</b>. Vendiste 50 unidades de algo de lo que tenías 10.</p>
+          </div>
+        </div>
+
+        <div class="code xs">
+          <div class="bar"><span class="fn">producto.ts — reescrito</span></div>
+<pre><span class="k">class</span> <span class="cl">Producto</span> {
+  <span class="k">private</span> <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="k">private</span> <span class="pr">precio</span>: <span class="n">number</span>;
+  <span class="k">private</span> <span class="pr">stock</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">precio</span>: <span class="n">number</span>, <span class="pr">stock</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+    <span class="k">this</span>.<span class="pr">precio</span> = <span class="n">0</span>;
+    <span class="k">this</span>.<span class="pr">stock</span> = <span class="n">0</span>;
+<span class="good">    <span class="k">this</span>.<span class="f">setPrecio</span>(<span class="pr">precio</span>);   <span class="c">// el constructor tampoco se saltea las reglas</span>
+    <span class="k">this</span>.<span class="f">reponer</span>(<span class="pr">stock</span>);</span>
+  }
+
+  <span class="f">getPrecio</span>(): <span class="n">number</span> { <span class="k">return</span> <span class="k">this</span>.<span class="pr">precio</span>; }
+  <span class="f">getStock</span>():  <span class="n">number</span> { <span class="k">return</span> <span class="k">this</span>.<span class="pr">stock</span>; }
+
+  <span class="f">setPrecio</span>(<span class="pr">precio</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="pr">precio</span> &lt;= <span class="n">0</span>) { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"El precio debe ser mayor a 0"</span>); <span class="k">return</span>; }
+    <span class="k">this</span>.<span class="pr">precio</span> = <span class="pr">precio</span>;
+  }
+
+  <span class="f">reponer</span>(<span class="pr">cantidad</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="pr">cantidad</span> &lt;= <span class="n">0</span>) { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"Cantidad inválida"</span>); <span class="k">return</span>; }
+    <span class="k">this</span>.<span class="pr">stock</span> += <span class="pr">cantidad</span>;
+  }
+
+  <span class="f">vender</span>(<span class="pr">cantidad</span>: <span class="n">number</span>): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="pr">cantidad</span> &lt;= <span class="n">0</span>) { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"Cantidad inválida"</span>); <span class="k">return</span>; }
+<span class="good">    <span class="k">if</span> (<span class="pr">cantidad</span> &gt; <span class="k">this</span>.<span class="pr">stock</span>) {
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`Stock insuficiente. Hay ${this.stock}.`</span>); <span class="k">return</span>;
+    }</span>
+    <span class="k">this</span>.<span class="pr">stock</span> -= <span class="pr">cantidad</span>;
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="note g" style="flex:none">
+        <span class="tag">El patrón que se repite en los cuatro arreglos</span>
+        <p class="big">El objeto <b>se defiende solo</b>. No confía en que el de afuera lo use bien.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> tarea</div><div>28 / 32</div></div>
+</section>
+
+
+<!-- ======================= 29 · TAREA 4 ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">tarea.ts</div>
+    <div class="breadcrumb">TAREA · 4 DE 6</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Después de clase · Ejercicio 4</div>
+      <h2>Jerarquía de empleados</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <ul style="margin-top:6px">
+          <li><code>Empleado</code>: <code>nombre</code>, <code>legajo</code>, <code>sueldoBase</code>. Método <code>mostrarDatos()</code></li>
+          <li><code>Vendedor extends Empleado</code>: agrega <code>zona</code> y <code>visitarCliente()</code></li>
+          <li><code>Repartidor extends Empleado</code>: agrega <code>patenteMoto</code> y <code>entregar()</code></li>
+        </ul>
+        <p style="font-size:25px;margin-top:16px">Cada subclase con su constructor llamando a <code class="inl">super()</code>.</p>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note">
+          <span class="tag">Además, contestá</span>
+          <p class="big">¿<code class="inl">sueldoBase</code> va <code class="inl">private</code> o <code class="inl">protected</code>?</p>
+        </div>
+        <div class="note r">
+          <span class="tag">Y ahora la pregunta de verdad</span>
+          <p>¿<b>Cambiaría tu respuesta</b> si <code class="inl">Vendedor</code> tuviera que calcular una <b>comisión sobre el sueldo</b>?</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a8">Ver respuesta <span class="hint">(intentalo primero)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a8">
+    <div class="ahead"><div class="atag">Respuesta · Ejercicio 4</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <div class="grid2" style="gap:26px;flex:1;min-height:0">
+        <div class="code xs">
+          <div class="bar"><span class="fn">empleado.ts</span></div>
+<pre><span class="k">class</span> <span class="cl">Empleado</span> {
+  <span class="k">protected</span> <span class="pr">nombre</span>: <span class="n">string</span>;
+  <span class="k">protected</span> <span class="pr">legajo</span>: <span class="n">number</span>;
+  <span class="k">protected</span> <span class="pr">sueldoBase</span>: <span class="n">number</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">legajo</span>: <span class="n">number</span>, <span class="pr">sueldoBase</span>: <span class="n">number</span>) {
+    <span class="k">this</span>.<span class="pr">nombre</span> = <span class="pr">nombre</span>;
+    <span class="k">this</span>.<span class="pr">legajo</span> = <span class="pr">legajo</span>;
+    <span class="k">this</span>.<span class="pr">sueldoBase</span> = <span class="pr">sueldoBase</span>;
+  }
+
+  <span class="f">mostrarDatos</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} (legajo ${this.legajo}) — $${this.sueldoBase}`</span>);
+  }
+}
+
+<span class="k">class</span> <span class="cl">Vendedor</span> <span class="k">extends</span> <span class="cl">Empleado</span> {
+  <span class="k">private</span> <span class="pr">zona</span>: <span class="n">string</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">legajo</span>: <span class="n">number</span>, <span class="pr">sueldoBase</span>: <span class="n">number</span>, <span class="pr">zona</span>: <span class="n">string</span>) {
+    <span class="k">super</span>(<span class="pr">nombre</span>, <span class="pr">legajo</span>, <span class="pr">sueldoBase</span>);
+    <span class="k">this</span>.<span class="pr">zona</span> = <span class="pr">zona</span>;
+  }
+
+  <span class="f">visitarCliente</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} sale a visitar clientes en ${this.zona}`</span>);
+  }
+}
+
+<span class="k">class</span> <span class="cl">Repartidor</span> <span class="k">extends</span> <span class="cl">Empleado</span> {
+  <span class="k">private</span> <span class="pr">patenteMoto</span>: <span class="n">string</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">legajo</span>: <span class="n">number</span>, <span class="pr">sueldoBase</span>: <span class="n">number</span>, <span class="pr">patenteMoto</span>: <span class="n">string</span>) {
+    <span class="k">super</span>(<span class="pr">nombre</span>, <span class="pr">legajo</span>, <span class="pr">sueldoBase</span>);
+    <span class="k">this</span>.<span class="pr">patenteMoto</span> = <span class="pr">patenteMoto</span>;
+  }
+
+  <span class="f">entregar</span>(): <span class="n">void</span> {
+    <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} entrega con la moto ${this.patenteMoto}`</span>);
+  }
+}</pre>
+        </div>
+
+        <div class="stack" style="justify-content:center">
+          <div class="note">
+            <span class="tag">Tal como está el enunciado</span>
+            <p><code class="inl">sueldoBase</code> <b>podría</b> ser <code class="inl">private</code>: nadie más que <code class="inl">Empleado</code> lo usa, porque <code class="inl">mostrarDatos()</code> vive en el padre.</p>
+          </div>
+
+          <div class="note r">
+            <span class="tag">Pero apenas agregás la comisión…</span>
+            <p><code class="inl">Vendedor</code> necesita <b>leer</b> <code class="inl">this.sueldoBase</code> — y con <code class="inl">private</code> <b>no compila</b>. Ahí sí tiene que ser <code class="inl">protected</code>.</p>
+          </div>
+
+          <div class="note g">
+            <span class="tag">La moraleja</span>
+            <p class="big">La visibilidad <b>no se decide de una vez y para siempre</b>. Se decide según <b>quién necesita el dato</b>.</p>
+          </div>
+
+          <div class="card b">
+            <h3>El matiz fino</h3>
+            <p style="font-size:21px"><code class="inl">Vendedor</code> necesita <b>leerlo</b>, no <b>escribirlo</b>. Un <code class="inl">protected</code> le da las dos cosas.</p>
+            <p style="font-size:21px;margin-top:10px">Si quisieras darle solo lectura: dejarlo <code class="inl">private</code> + un <code class="inl">protected getSueldoBase()</code>. Más prolijo, más código. <b>Es un trade-off real y no hay una única respuesta correcta.</b></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> tarea</div><div>29 / 32</div></div>
+</section>
+
+
+<!-- ======================= 30 · TAREA 5 ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">tarea.ts</div>
+    <div class="breadcrumb">TAREA · 5 DE 6</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Después de clase · Ejercicio 5</div>
+      <h2>Variables sueltas <span style="color:var(--dim)">vs</span> objetos</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:34px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <p style="font-size:26px">Resolvé esta situación <b>de dos formas</b>:</p>
+        <div class="note" style="margin:16px 0;border-color:var(--dim);background:rgba(139,148,158,.07)">
+          <p style="font-style:italic;font-size:25px">"Se necesitan representar 3 productos con nombre, precio y stock, y poder venderlos."</p>
+        </div>
+        <ul>
+          <li><b>Forma 1:</b> con variables sueltas (<code>nombreProducto1</code>, <code>precioProducto1</code>…)</li>
+          <li><b>Forma 2:</b> con una clase <code>Producto</code> y tres objetos</li>
+        </ul>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note r">
+          <span class="tag">Y después escribí un texto corto</span>
+          <p class="big">¿Cuáles son las diferencias?</p>
+          <p style="margin-top:14px">¿Qué pasa cuando en vez de 3 productos son <b>500</b>?</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a9">Ver respuesta <span class="hint">(intentalo primero)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a9">
+    <div class="ahead"><div class="atag">Respuesta · Ejercicio 5</div><button class="close">esc · cerrar</button></div>
+    <div class="abody" style="gap:14px">
+      <div class="grid2" style="gap:26px;flex:none">
+        <div class="code xs">
+          <div class="bar"><span class="fn">forma 1 — variables sueltas</span></div>
+<pre><span class="k">let</span> <span class="pr">nombreProducto1</span> = <span class="s">"Mouse"</span>;
+<span class="k">let</span> <span class="pr">precioProducto1</span> = <span class="n">3000</span>;
+<span class="k">let</span> <span class="pr">stockProducto1</span>  = <span class="n">10</span>;
+
+<span class="k">let</span> <span class="pr">nombreProducto2</span> = <span class="s">"Teclado"</span>;   <span class="c">// ...y así, x3</span>
+
+<span class="k">function</span> <span class="f">venderProducto1</span>(<span class="pr">cantidad</span>: <span class="n">number</span>) {
+<span class="bad">  <span class="pr">stockProducto1</span> -= <span class="pr">cantidad</span>;   <span class="c">// una función por producto 🙃</span></span>
+}</pre>
+        </div>
+
+        <div class="code xs">
+          <div class="bar"><span class="fn">forma 2 — objetos</span></div>
+<pre><span class="c">// la clase Producto del ejercicio 3</span>
+
+<span class="k">const</span> <span class="pr">productos</span> = [
+  <span class="k">new</span> <span class="cl">Producto</span>(<span class="s">"Mouse"</span>, <span class="n">3000</span>, <span class="n">10</span>),
+  <span class="k">new</span> <span class="cl">Producto</span>(<span class="s">"Teclado"</span>, <span class="n">12000</span>, <span class="n">5</span>),
+  <span class="k">new</span> <span class="cl">Producto</span>(<span class="s">"Monitor"</span>, <span class="n">90000</span>, <span class="n">2</span>),
+];
+
+<span class="good"><span class="pr">productos</span>.<span class="f">forEach</span>(<span class="pr">p</span> =&gt; <span class="pr">p</span>.<span class="f">vender</span>(<span class="n">1</span>));   <span class="c">// una línea. para 3 o para 500.</span></span></pre>
+        </div>
+      </div>
+
+      <table class="sm" style="flex:none;font-size:19px">
+        <thead><tr><th style="width:26%"></th><th>Variables sueltas</th><th>Objetos</th></tr></thead>
+        <tbody>
+          <tr><td>Agregar un producto</td><td class="no">3 variables + 1 función más</td><td class="yes">new Producto(...)</td></tr>
+          <tr><td>500 productos</td><td class="no">1500 variables</td><td class="yes">Un array</td></tr>
+          <tr><td>Validar el precio</td><td class="no">En cada lugar donde lo asignes</td><td class="yes">Una vez, en el setter</td></tr>
+          <tr><td>Recorrerlos todos</td><td class="no">Imposible sin escribirlos uno por uno</td><td class="yes">productos.forEach(...)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="grid3" style="gap:18px;flex:none">
+        <div class="note">
+          <span class="tag">El punto de fondo</span>
+          <p style="font-size:20px">Con variables sueltas, <code class="inl">precioProducto1</code> y <code class="inl">stockProducto1</code> están relacionadas <b>solo en tu cabeza</b>. Nada impide restarle stock a un producto y precio a otro.</p>
+        </div>
+        <div class="note g">
+          <span class="tag">Lo que hace el objeto</span>
+          <p style="font-size:20px"><b>Hace explícita esa relación:</b> el precio y el stock son del <b>mismo</b> producto porque viven adentro del <b>mismo objeto</b> — con el comportamiento (<code class="inl">vender()</code>) al lado de los datos que toca.</p>
+        </div>
+        <div class="note r">
+          <span class="tag">El salto que justifica el paradigma</span>
+          <p style="font-size:20px">Con 500 productos, la forma 1 no es "peor": <b>es imposible</b>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> tarea</div><div>30 / 32</div></div>
+</section>
+
+
+<!-- ======================= 31 · TAREA 6 — INTEGRADOR ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab on" style="margin-left:20px">biblioteca.ts</div>
+    <div class="breadcrumb">TAREA · 6 DE 6 · INTEGRADOR</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker amber"><span class="c">//</span> Después de clase · Ejercicio 6 · Integrador</div>
+      <h2>Biblioteca</h2>
+    </div>
+
+    <div class="grid2 reveal" style="gap:30px;flex:1;min-height:0">
+      <div class="consigna" style="align-self:start">
+        <span class="tag">Consigna</span>
+        <p style="font-size:25px;margin-bottom:10px"><b><code class="inl">Libro</code></b>: <code>titulo</code>, <code>autor</code>, <code>isbn</code>, y <code>estaPrestado</code> (privado, arranca en <code>false</code>).</p>
+        <ul>
+          <li><code>prestar()</code> → solo si no está prestado ya</li>
+          <li><code>devolver()</code> → solo si está prestado</li>
+          <li><code>estaDisponible()</code> → getter</li>
+        </ul>
+        <p style="font-size:25px;margin:16px 0 10px"><b><code class="inl">Persona</code></b>: <code>nombre</code> y <code>dni</code>.</p>
+        <p style="font-size:25px;margin-bottom:10px"><b><code class="inl">Socio extends Persona</code></b>: agrega <code>numeroDeSocio</code> y un array privado <code>librosPrestados: Libro[]</code>.</p>
+        <ul>
+          <li><code>pedirPrestado(libro)</code> → solo si el libro está disponible <b>y</b> el socio tiene <b>menos de 3</b> libros</li>
+          <li><code>devolverLibro(libro)</code> · <code>mostrarPrestamos()</code></li>
+        </ul>
+      </div>
+
+      <div class="stack" style="justify-content:center">
+        <div class="note">
+          <span class="tag">Probalo</span>
+          <p>Que un socio pida <b>4 libros</b>.<br>Y que intente pedir uno <b>ya prestado</b>.</p>
+        </div>
+        <div class="note r">
+          <span class="tag">💡 La pregunta difícil</span>
+          <p class="big">Si <code class="inl">estaPrestado</code> es privado…<br>¿cómo hace el <code class="inl">Socio</code> para saber si puede llevárselo?</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="reveal-btn" data-answer="a10">Ver respuesta <span class="hint">(intentalo primero)</span></button>
+  </div>
+
+  <!-- RESPUESTA -->
+  <div class="answer" id="a10">
+    <div class="ahead"><div class="atag">Respuesta · Ejercicio 6 · Integrador</div><button class="close">esc · cerrar</button></div>
+    <div class="abody">
+      <div class="grid2" style="gap:24px;flex:1;min-height:0">
+        <div class="code xs">
+          <div class="bar"><span class="fn">biblioteca.ts</span> <span style="color:var(--faint);margin-left:auto">devolverLibro() y mostrarPrestamos(), omitidos por espacio</span></div>
+<pre style="font-size:13.6px;line-height:1.38"><span class="k">class</span> <span class="cl">Libro</span> {
+  <span class="k">private</span> <span class="pr">prestado</span>: <span class="n">boolean</span> = <span class="k">false</span>;
+  <span class="k">constructor</span>(<span class="k">private</span> <span class="pr">titulo</span>: <span class="n">string</span>, <span class="k">private</span> <span class="pr">autor</span>: <span class="n">string</span>, <span class="k">private</span> <span class="pr">isbn</span>: <span class="n">string</span>) {}
+
+  <span class="f">getTitulo</span>(): <span class="n">string</span> { <span class="k">return</span> <span class="k">this</span>.<span class="pr">titulo</span>; }
+  <span class="f">estaDisponible</span>(): <span class="n">boolean</span> { <span class="k">return</span> !<span class="k">this</span>.<span class="pr">prestado</span>; }
+<span class="good">  <span class="f">prestar</span>(): <span class="n">boolean</span> {
+    <span class="k">if</span> (<span class="k">this</span>.<span class="pr">prestado</span>) {
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`"${this.titulo}" ya está prestado`</span>);
+      <span class="k">return</span> <span class="k">false</span>;
+    }
+    <span class="k">this</span>.<span class="pr">prestado</span> = <span class="k">true</span>;
+    <span class="k">return</span> <span class="k">true</span>;
+  }</span>
+  <span class="f">devolver</span>(): <span class="n">void</span> {
+    <span class="k">if</span> (!<span class="k">this</span>.<span class="pr">prestado</span>) { <span class="pr">console</span>.<span class="f">log</span>(<span class="s">"No estaba prestado"</span>); <span class="k">return</span>; }
+    <span class="k">this</span>.<span class="pr">prestado</span> = <span class="k">false</span>;
+  }
+}
+
+<span class="k">class</span> <span class="cl">Persona</span> {
+  <span class="k">constructor</span>(<span class="k">protected</span> <span class="pr">nombre</span>: <span class="n">string</span>, <span class="k">protected</span> <span class="pr">dni</span>: <span class="n">string</span>) {}
+}
+
+<span class="k">class</span> <span class="cl">Socio</span> <span class="k">extends</span> <span class="cl">Persona</span> {
+<span class="good">  <span class="k">private</span> <span class="pr">librosPrestados</span>: <span class="cl">Libro</span>[] = [];   <span class="c">// nadie lo toca de afuera</span></span>
+  <span class="k">private</span> <span class="k">readonly</span> <span class="pr">MAXIMO</span>: <span class="n">number</span> = <span class="n">3</span>;
+
+  <span class="k">constructor</span>(<span class="pr">nombre</span>: <span class="n">string</span>, <span class="pr">dni</span>: <span class="n">string</span>, <span class="k">private</span> <span class="pr">nroSocio</span>: <span class="n">number</span>) {
+    <span class="k">super</span>(<span class="pr">nombre</span>, <span class="pr">dni</span>);
+  }
+
+  <span class="f">pedirPrestado</span>(<span class="pr">libro</span>: <span class="cl">Libro</span>): <span class="n">void</span> {
+    <span class="k">if</span> (<span class="k">this</span>.<span class="pr">librosPrestados</span>.<span class="pr">length</span> &gt;= <span class="k">this</span>.<span class="pr">MAXIMO</span>) {
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} ya tiene ${this.MAXIMO} libros`</span>); <span class="k">return</span>;
+    }
+<span class="good">    <span class="k">if</span> (<span class="pr">libro</span>.<span class="f">prestar</span>()) {        <span class="c">// el libro decide si se deja prestar</span>
+      <span class="k">this</span>.<span class="pr">librosPrestados</span>.<span class="f">push</span>(<span class="pr">libro</span>);
+      <span class="pr">console</span>.<span class="f">log</span>(<span class="s">`${this.nombre} se llevó "${libro.getTitulo()}"`</span>);
+    }</span>
+  }
+}</pre>
+        </div>
+
+        <div class="stack" style="justify-content:flex-start;gap:14px">
+          <div class="note g">
+            <span class="tag">1 · Cada objeto se defiende a sí mismo</span>
+            <p style="font-size:22px">El <code class="inl">Libro</code> no deja que lo presten dos veces. El <code class="inl">Socio</code> no deja pasar de 3. <b>Ninguno confía en el otro.</b></p>
+          </div>
+
+          <div class="note">
+            <span class="tag">2 · La verificación vive donde vive el dato</span>
+            <p style="font-size:22px;font-family:var(--font-mono);color:var(--green)">if (libro.prestar()) { ... }</p>
+            <p style="font-size:22px;margin-top:10px">El <code class="inl">Socio</code> <b>no pregunta</b> <code class="inl">if (libro.prestado === false)</code> — <b>no puede</b>, es privado. Le <b>pide al libro que se preste</b>, y el libro contesta si pudo.</p>
+            <p style="font-size:22px;margin-top:10px">Quien sabe si un libro está disponible es <b>el libro</b>, no el socio.</p>
+          </div>
+
+          <div class="note r">
+            <span class="tag">3 · librosPrestados es privado</span>
+            <p style="font-size:22px">Si fuera público, alguien haría <code class="inl">socio.librosPrestados.push(libro)</code> y se saltearía <b>las dos</b> validaciones de un saque: el máximo de 3 <b>y</b> el estado del libro.</p>
+          </div>
+
+          <div class="note" style="border-color:var(--purple);background:rgba(188,140,255,.08)">
+            <span class="tag" style="color:var(--purple)">4 · Herencia con criterio</span>
+            <p style="font-size:22px">"Un socio <b>es una</b> persona" ✔. Y <code class="inl">Socio</code> <b>tiene</b> libros — esa relación <b>no es herencia</b>.</p>
+            <p style="font-size:22px;margin-top:10px">Es otra cosa, que tiene nombre, y que vamos a ver pronto.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> tarea</div><div>31 / 32</div></div>
+</section>
+
+
+<!-- ======================= 32 · PARA PENSAR ======================= -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="chrome">
+    <div class="dot" style="background:#f85149"></div><div class="dot" style="background:#d29922"></div><div class="dot" style="background:#3fb950"></div>
+    <div class="tab">repaso.ts</div>
+    <div class="tab on">clase-3.ts</div>
+    <div class="breadcrumb">PARA PENSAR</div>
+  </div>
+
+  <div class="body">
+    <div class="reveal">
+      <div class="kicker"><span class="c">//</span> Para pensar hasta la clase que viene</div>
+      <h2>Tres preguntas</h2>
+    </div>
+
+    <div class="reveal" style="flex:1;min-height:0;display:flex;flex-direction:column;gap:20px;justify-content:center">
+      <div class="card g">
+        <h3 style="color:var(--green)">1 · El perro que come distinto</h3>
+        <p style="font-size:25px;color:var(--ink)"><code class="inl">Perro</code> hereda <code class="inl">comer()</code> de <code class="inl">Animal</code>. ¿Y si el perro tuviera que comer <b>distinto</b> que un animal genérico?<br>
+        <span style="color:var(--dim)">¿Podés cambiarle el comportamiento <b>sin tocar</b> <code class="inl">Animal</code>?</span></p>
+      </div>
+
+      <div class="card a">
+        <h3 style="color:var(--amber)">2 · El array de animales</h3>
+        <p style="font-size:25px;color:var(--ink)">Tenés un array con perros, gatos y vacas. Querés que <b>cada uno haga su sonido</b>.<br>
+        <span style="color:var(--dim)">¿Se te ocurre cómo, <b>sin escribir un <code class="inl">if</code></b> por cada tipo de animal?</span></p>
+      </div>
+
+      <div class="card b">
+        <h3 style="color:var(--blue)">3 · El "tiene un"</h3>
+        <p style="font-size:25px;color:var(--ink)">En la biblioteca, <code class="inl">Socio</code> <b>tiene</b> libros. Y <code class="inl">Auto</code> <b>tiene</b> un motor.<br>
+        <span style="color:var(--dim)">Esa relación no es herencia. <b>¿Qué es?</b></span></p>
+      </div>
+    </div>
+
+    <div class="note g reveal" style="margin-bottom:24px">
+      <span class="tag">Retomamos con la clase 3 — Sobreescritura y polimorfismo</span>
+      <p>Las preguntas <b>1 y 2</b> son exactamente el tema de la clase que viene. La <b>3</b> la contestamos un poco más adelante.</p>
+    </div>
+  </div>
+
+  <div class="foot"><div class="left"><span class="branch">●</span> fin</div><div>32 / 32</div></div>
+</section>
+
+
+</main>
+</div>
+
+<script>
+/* ===========================================================
+   CONTROLADOR DE LA PRESENTACIÓN
+   =========================================================== */
+class SlidePresentation {
+  constructor(){
+    this.slides = document.querySelectorAll('.slide');
+    this.current = 0;
+    this.stage = document.getElementById('deckStage');
+    this.progress = document.getElementById('progress');
+    this.setupStageScale();
+    this.setupAnswers();
+    this.setupKeyboard();
+    this.setupTouch();
+    this.setupWheel();
+    this.show(0);
+  }
+
+  /* --- escala del escenario 16:9 --- */
+  setupStageScale(){
+    const scale = () => {
+      const f = Math.min(window.innerWidth/1920, window.innerHeight/1080);
+      const x = (window.innerWidth - 1920*f)/2;
+      const y = (window.innerHeight - 1080*f)/2;
+      this.stage.style.transform = `translate(${x}px, ${y}px) scale(${f})`;
+    };
+    scale();
+    window.addEventListener('resize', scale);
+  }
+
+  /* --- respuestas ocultas: se revelan al click (o con R) --- */
+  setupAnswers(){
+    document.querySelectorAll('.reveal-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        document.getElementById(btn.dataset.answer).classList.add('open');
+      });
+    });
+    document.querySelectorAll('.answer .close').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        btn.closest('.answer').classList.remove('open');
+      });
+    });
+  }
+
+  openAnswerOf(slide){
+    const a = slide.querySelector('.answer');
+    if (a) a.classList.toggle('open');
+  }
+  closeAnswers(){
+    document.querySelectorAll('.answer.open').forEach(a => a.classList.remove('open'));
+  }
+  hasOpenAnswer(){
+    return !!document.querySelector('.answer.open');
+  }
+
+  /* --- navegación --- */
+  show(i){
+    this.current = Math.max(0, Math.min(i, this.slides.length - 1));
+    this.slides.forEach((s, n) => {
+      const on = n === this.current;
+      s.classList.toggle('active', on);
+      s.classList.toggle('visible', on);
+    });
+    this.progress.style.width = ((this.current + 1) / this.slides.length * 100) + '%';
+  }
+  next(){ this.closeAnswers(); this.show(this.current + 1); }
+  prev(){ this.closeAnswers(); this.show(this.current - 1); }
+
+  setupKeyboard(){
+    document.addEventListener('keydown', e => {
+      if (e.target.getAttribute && e.target.getAttribute('contenteditable')) return;
+      switch(e.key){
+        case 'ArrowRight': case 'PageDown': case ' ':
+          e.preventDefault(); this.next(); break;
+        case 'ArrowLeft': case 'PageUp':
+          e.preventDefault(); this.prev(); break;
+        case 'Home': e.preventDefault(); this.closeAnswers(); this.show(0); break;
+        case 'End':  e.preventDefault(); this.closeAnswers(); this.show(this.slides.length-1); break;
+        case 'Escape': this.closeAnswers(); break;
+        case 'r': case 'R':
+          this.openAnswerOf(this.slides[this.current]); break;
+      }
+    });
+  }
+
+  setupTouch(){
+    let x0 = null;
+    document.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, {passive:true});
+    document.addEventListener('touchend', e => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 60) { dx < 0 ? this.next() : this.prev(); }
+      x0 = null;
+    }, {passive:true});
+  }
+
+  setupWheel(){
+    let lock = false;
+    document.addEventListener('wheel', e => {
+      if (lock) return;
+      if (Math.abs(e.deltaY) < 24) return;
+      lock = true;
+      e.deltaY > 0 ? this.next() : this.prev();
+      setTimeout(() => lock = false, 700);
+    }, {passive:true});
+  }
+}
+
+/* ===========================================================
+   EDICIÓN EN LÍNEA (hover esquina sup. izq. o tecla E)
+   Guarda en localStorage. Ctrl+S descarga el HTML editado.
+   =========================================================== */
+class InlineEditor {
+  constructor(){
+    this.isActive = false;
+    this.toggleBtn = document.getElementById('editToggle');
+    this.targets = 'h1,h2,h3,p,li,td,th,.atag,.tag,.kicker,.lab';
+    this.restore();
+    this.bind();
+  }
+  bind(){
+    const hotzone = document.querySelector('.edit-hotzone');
+    let hideTimeout = null;
+    const show = () => { clearTimeout(hideTimeout); this.toggleBtn.classList.add('show'); };
+    const hide = () => { hideTimeout = setTimeout(() => { if(!this.isActive) this.toggleBtn.classList.remove('show'); }, 400); };
+
+    hotzone.addEventListener('mouseenter', show);
+    hotzone.addEventListener('mouseleave', hide);
+    this.toggleBtn.addEventListener('mouseenter', show);
+    this.toggleBtn.addEventListener('mouseleave', hide);
+    hotzone.addEventListener('click', () => this.toggle());
+    this.toggleBtn.addEventListener('click', () => this.toggle());
+
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) this.toggle();
+      if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.download(); }
+    });
+  }
+  toggle(){
+    this.isActive = !this.isActive;
+    document.body.classList.toggle('editing', this.isActive);
+    this.toggleBtn.classList.toggle('active', this.isActive);
+    this.toggleBtn.classList.add('show');
+    document.querySelectorAll(this.targets).forEach(el => {
+      if (this.isActive) {
+        el.setAttribute('contenteditable','true');
+        el.addEventListener('blur', this.save);
+      } else {
+        el.removeAttribute('contenteditable');
+      }
+    });
+    if (!this.isActive) this.save();
+  }
+  save = () => {
+    try { localStorage.setItem('claseRepasoHTML', document.querySelector('.deck-stage').innerHTML); } catch(e){}
+  }
+  restore(){
+    try {
+      const saved = localStorage.getItem('claseRepasoHTML');
+      if (saved) document.querySelector('.deck-stage').innerHTML = saved;
+    } catch(e){}
+  }
+  download(){
+    const blob = new Blob([document.documentElement.outerHTML], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Clase-Repaso.html';
+    a.click();
+  }
+}
+
+const deck = new SlidePresentation();
+const editor = new InlineEditor();
+</script>
+</body>
+</html>
