@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clase 3 — Sobreescritura y Polimorfismo</title>
+
+<!-- Tipografía: Source Serif 4 (voz) · DM Sans (sustancia) · IBM Plex Mono (metadatos y código) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   1. TOKENS DEL SISTEMA
+   Cambiá estas variables para cambiar todo el look.
+   =========================================== */
+:root{
+  /* Superficies duales */
+  --navy:#1C2644;  --navy-alt:#232F55;
+  --cream:#F0ECE3; --cream-alt:#E6E0D4;
+  /* Texto sobre navy */
+  --text-warm:#E2DCD0; --muted-d:#8A96A8; --hint-d:#4E5A6E;
+  /* Texto sobre crema */
+  --ink:#1A2030; --muted-l:#5A6270; --hint-l:#9AA0A8;
+  /* Único acento del sistema */
+  --gold:#C8A870; --gold-ink:#8A6B32;
+  /* Hairlines */
+  --bd-dark:#2E3D5C; --bd-light:#CAC4B4;
+
+  --f-serif:'Source Serif 4',Georgia,serif;
+  --f-sans:'DM Sans',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',monospace;
+
+  /* Escala tipográfica, autorada a 1920×1080 */
+  --t-display:182px; --t-h1:100px; --t-h2:58px; --t-h3:36px;
+  --t-lead:28px; --t-body:21px; --t-cap:17px; --t-label:14px;
+
+  --pad-x:144px; --pad-y:56px;
+  --ease:cubic-bezier(0.16,1,0.3,1);
+
+  --stage-bg:#0d1222;
+  --slide-bg:var(--navy);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* ===========================================
+   2. FIXED 16:9 STAGE — viewport-base.css íntegro
+   =========================================== */
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage-bg,#000)}
+.deck-viewport{position:fixed;inset:0;overflow:hidden;background:var(--stage-bg,#000)}
+.deck-stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;transform-origin:0 0;background:var(--slide-bg,#fff)}
+.slide{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden;display:block;visibility:hidden;opacity:0;pointer-events:none;background:var(--slide-bg,#fff)}
+.slide.active,.slide.visible{visibility:visible;opacity:1;pointer-events:auto;z-index:1}
+img,video,canvas,svg{max-width:100%;max-height:100%}
+.deck-controls{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:1000}
+@media print{
+  html,body{width:1920px;height:auto;overflow:visible;background:#fff}
+  .deck-viewport{position:static;overflow:visible;background:#fff}
+  .deck-stage{position:static;width:auto;height:auto;transform:none!important;background:none}
+  .slide{position:relative;display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;width:1920px;height:1080px;break-after:page;page-break-after:always}
+  .slide:last-child{break-after:auto;page-break-after:auto}
+  .deck-controls{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.2s!important}}
+
+/* ===========================================
+   3. SUPERFICIES
+   Navy = clase en vivo. Crema = tarea y resoluciones densas.
+   =========================================== */
+.slide.navy{background:var(--navy);color:var(--text-warm)}
+.slide.cream{background:var(--cream);color:var(--ink)}
+/* Huella digital del sistema: grilla de 80px, sólo en oscuro */
+.slide.navy::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:80px 80px}
+.slide > *{position:relative;z-index:1}
+
+/* ===========================================
+   4. ESTRUCTURA: chrome / cuerpo / pie
+   =========================================== */
+.wrap{position:absolute;inset:0;padding:var(--pad-y) var(--pad-x);
+  display:grid;grid-template-rows:auto 1fr auto;gap:20px}
+.wrap.chromeless{grid-template-rows:1fr}
+
+.chrome,.foot{display:flex;justify-content:space-between;align-items:baseline;
+  font:500 var(--t-label)/1 var(--f-mono);letter-spacing:.2em;text-transform:uppercase}
+.chrome{border-bottom:1px solid var(--bd-dark);padding-bottom:16px;color:var(--muted-d)}
+.foot{border-top:1px solid var(--bd-dark);padding-top:16px;color:var(--hint-d)}
+.cream .chrome{border-color:var(--bd-light);color:var(--muted-l)}
+.cream .foot{border-color:var(--bd-light);color:var(--hint-l)}
+.chrome b{color:var(--gold);font-weight:500}
+.cream .chrome b{color:var(--gold-ink)}
+
+.body{min-height:0;display:flex;flex-direction:column;gap:22px}
+
+/* ===========================================
+   5. TIPOGRAFÍA — serif = voz, sans = sustancia, mono = metadato
+   =========================================== */
+h1,h2,h3{font-family:var(--f-serif);letter-spacing:-.015em}
+h1{font-size:var(--t-h1);font-weight:600;line-height:1.06}
+h2{font-size:var(--t-h2);font-weight:600;line-height:1.14}
+h3{font-size:var(--t-h3);font-weight:500;line-height:1.3;letter-spacing:0}
+/* El "momento Signal": bastardilla dorada dentro del serif romano */
+h1 em,h2 em,h3 em,.display em{font-style:italic;color:var(--gold);font-weight:600}
+.cream h1 em,.cream h2 em,.cream h3 em{color:var(--gold-ink)}
+
+.display{font-family:var(--f-serif);font-size:var(--t-display);font-weight:700;line-height:.94;letter-spacing:-.022em}
+
+.kicker{font:500 var(--t-label)/1 var(--f-mono);letter-spacing:.28em;text-transform:uppercase;color:var(--gold)}
+.cream .kicker{color:var(--gold-ink)}
+.rule{width:36px;height:1px;background:var(--gold);margin:20px 0}
+.cream .rule{background:var(--gold-ink)}
+.hr{height:1px;background:var(--bd-dark);border:0}
+.cream .hr{background:var(--bd-light)}
+
+.lead{font:400 var(--t-lead)/1.55 var(--f-sans);color:var(--muted-d);max-width:1180px}
+.cream .lead{color:var(--muted-l)}
+p,li{font:400 var(--t-body)/1.62 var(--f-sans);color:var(--muted-d)}
+.cream p,.cream li{color:var(--muted-l)}
+.fg{color:var(--text-warm)}  .cream .fg{color:var(--ink)}
+/* Énfasis en cuerpo = cambio de familia a serif bastardilla dorada */
+em{font-family:var(--f-serif);font-style:italic;color:var(--gold);font-weight:600}
+.cream em{color:var(--gold-ink)}
+strong{font-weight:500;color:var(--text-warm)}
+.cream strong{color:var(--ink)}
+
+/* Etiqueta con contorno dorado */
+.tag{display:inline-block;border:1px solid var(--gold);color:var(--gold);padding:6px 14px;
+  font:500 var(--t-label)/1 var(--f-mono);letter-spacing:.2em;text-transform:uppercase}
+.cream .tag{border-color:var(--gold-ink);color:var(--gold-ink)}
+
+/* Viñetas: em-dash en mono dorado, nunca puntos */
+ul.dash{list-style:none;display:flex;flex-direction:column;gap:13px}
+ul.dash li{display:grid;grid-template-columns:26px 1fr;gap:12px;align-items:baseline}
+ul.dash li::before{content:"—";font-family:var(--f-mono);color:var(--gold);font-size:19px}
+.cream ul.dash li::before{color:var(--gold-ink)}
+ol.num{list-style:none;display:flex;flex-direction:column;gap:14px;counter-reset:n}
+ol.num li{display:grid;grid-template-columns:38px 1fr;gap:12px;align-items:baseline;counter-increment:n}
+ol.num li::before{content:counter(n,decimal-leading-zero);font:500 16px/1.5 var(--f-mono);color:var(--gold)}
+.cream ol.num li::before{color:var(--gold-ink)}
+
+/* Cifra estadística: serif 600 dorado */
+.stat{font-family:var(--f-serif);font-weight:600;font-size:106px;line-height:1;letter-spacing:-.02em;color:var(--gold)}
+.cream .stat{color:var(--gold-ink)}
+
+/* ===========================================
+   6. CÓDIGO
+   Mono en su rol legítimo. Las palabras del lenguaje van en oro:
+   es el mismo criterio que la bastardilla dorada en los titulares.
+   =========================================== */
+pre{font-family:var(--f-mono);font-size:20px;line-height:1.6;white-space:pre;overflow:hidden;
+  border:1px solid var(--bd-dark);background:var(--navy-alt);padding:22px 26px;color:var(--text-warm)}
+.cream pre{border-color:var(--bd-light);background:var(--cream-alt);color:var(--ink)}
+pre.sm{font-size:18px;line-height:1.54;padding:18px 20px}
+pre.xs{font-size:16px;line-height:1.5;padding:15px 17px}
+.k{color:var(--gold)}                                   /* palabra clave */
+.cream .k{color:var(--gold-ink)}                        /* el oro claro no contrasta sobre papel */
+.c{color:var(--hint-d);font-style:italic}               /* comentario */
+.cream .c{color:#8C8778}
+.bad{color:#B3707A}                                     /* marca de error */
+.cream .bad{color:#9C4450}
+
+code{font-family:var(--f-mono);font-size:.92em;color:var(--text-warm)}
+.cream code{color:var(--ink)}
+
+/* ===========================================
+   7. TABLAS — sólo hairlines, sin relleno ni bordes redondeados
+   =========================================== */
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:13px 18px 13px 0;border-bottom:1px solid var(--bd-dark);
+  font:400 var(--t-body)/1.45 var(--f-sans);color:var(--muted-d);vertical-align:top}
+.cream th,.cream td{border-color:var(--bd-light);color:var(--muted-l)}
+th{font:500 var(--t-label)/1.4 var(--f-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--gold);padding-bottom:11px}
+.cream th{color:var(--gold-ink)}
+td.hi{color:var(--text-warm)}
+.cream td.hi{color:var(--ink)}
+table.sm td,table.sm th{font-size:18px;padding:10px 14px 10px 0}
+
+/* ===========================================
+   8. COLUMNAS
+   =========================================== */
+.cols{display:grid;gap:0;min-height:0}
+.cols>*{min-width:0;min-height:0}
+.c2{grid-template-columns:1fr 1fr}
+.c2w{grid-template-columns:1fr 1.25fr}
+.c2n{grid-template-columns:1.25fr 1fr}
+.divx>*+*{border-left:1px solid var(--bd-dark);padding-left:48px}
+.divx>*{padding-right:48px}
+.cream .divx>*+*{border-color:var(--bd-light)}
+
+/* ===========================================
+   9. PANEL DE RESPUESTA OCULTABLE
+   Estado cerrado: etiqueta dorada centrada.
+   Estado abierto: el contenido aparece. Altura reservada => sin salto de layout.
+   =========================================== */
+.rev{position:relative;border-top:1px solid var(--bd-dark);min-height:0;overflow:hidden}
+.cream .rev{border-color:var(--bd-light)}
+.rev-cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  cursor:pointer;transition:opacity .4s var(--ease),transform .4s var(--ease);background:inherit}
+.rev-cta .tag{transition:background .25s,color .25s}
+.rev-cta:hover .tag{background:var(--gold);color:var(--navy)}
+.cream .rev-cta:hover .tag{background:var(--gold-ink);color:var(--cream)}
+.rev-hint{font:400 var(--t-cap)/1 var(--f-mono);letter-spacing:.14em;color:var(--hint-d);text-transform:uppercase}
+.cream .rev-hint{color:var(--hint-l)}
+.rev-body{opacity:0;transform:translateY(16px);transition:opacity .55s var(--ease),transform .55s var(--ease);
+  pointer-events:none;padding-top:22px;height:100%;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:center}
+/* En las slides de pregunta-respuesta (navy) las dos columnas se centran
+   verticalmente, para que la respuesta no quede colgada arriba. */
+.slide.navy .cols:has(> .rev) > *{display:flex;flex-direction:column;justify-content:center}
+.rev.open .rev-cta{opacity:0;pointer-events:none;transform:scale(.97)}
+.rev.open .rev-body{opacity:1;transform:none;pointer-events:auto}
+.rev-body>*+*{margin-top:15px}
+/* Respuestas con código: el bloque ocupa el ancho completo del panel
+   (el código no se puede reflowear) y la prosa baja en dos columnas. */
+.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 30px;align-content:start}
+.rev-grid>*{margin-top:0!important;min-width:0}
+.rev-grid>pre{grid-column:1/-1}
+.rev-grid pre{font-size:14px;line-height:1.5;padding:13px 15px}
+.rev-grid p{font-size:18px;line-height:1.48}
+.rev-grid p+p{margin-top:9px}
+.rev-grid .kicker{font-size:13px}
+/* En las slides de tarea el panel de respuesta lleva el código:
+   necesita más ancho que la consigna. Y como la consigna queda más
+   angosta, su código baja al mismo cuerpo que el de la respuesta. */
+.c2r{grid-template-columns:.82fr 1.18fr}
+.c2r pre{font-size:14px;line-height:1.5;padding:13px 15px}
+
+/* ===========================================
+   10. DIAGRAMA UML (slide 3) — CSS + SVG, sin dependencias
+   =========================================== */
+/* Conectores dibujados con divs en % — el mismo sistema de coordenadas
+   que usan las cajas, así no se pueden desalinear. */
+.uml{position:relative;width:100%;height:100%}
+.ln{position:absolute;background:var(--bd-dark)}
+.ln.v{width:1px}
+.ln.h{height:1px}
+.tri{position:absolute;width:26px;height:15px;transform:translateX(-50%)}
+.box{position:absolute;border:1px solid var(--bd-dark);background:var(--navy-alt);text-align:center;
+  display:flex;flex-direction:column}
+.box .bt{font-family:var(--f-serif);font-size:32px;font-weight:600;color:var(--text-warm);
+  border-bottom:1px solid var(--bd-dark);flex:1;display:flex;align-items:center;justify-content:center}
+.box .bm{font-family:var(--f-mono);font-size:18px;color:var(--gold);padding:12px 0}
+.bubble{position:absolute;border:1px solid var(--bd-dark);background:var(--navy);
+  font-family:var(--f-serif);font-style:italic;font-weight:600;font-size:27px;color:var(--gold);
+  padding:9px 20px;white-space:nowrap}
+/* La colita apunta hacia arriba, a la caja de la que sale el sonido */
+.bubble::after{content:"";position:absolute;left:24px;top:-9px;width:16px;height:9px;
+  background:var(--navy);border-left:1px solid var(--bd-dark);border-top:1px solid var(--bd-dark);
+  transform:skewX(24deg)}
+
+/* ===========================================
+   11. ANIMACIONES — se disparan con .visible en la slide activa
+   =========================================== */
+.reveal{opacity:0;transform:translateY(28px);
+  transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.slide.visible .reveal{opacity:1;transform:none}
+.slide.visible .d1{transition-delay:.06s} .slide.visible .d2{transition-delay:.15s}
+.slide.visible .d3{transition-delay:.24s} .slide.visible .d4{transition-delay:.33s}
+.slide.visible .d5{transition-delay:.42s} .slide.visible .d6{transition-delay:.51s}
+.slide.visible .d7{transition-delay:.60s}
+.growx{transform:scaleX(0);transform-origin:left;transition:transform .7s var(--ease) .2s}
+.slide.visible .growx{transform:scaleX(1)}
+.drawin{opacity:0;transition:opacity .9s var(--ease) .5s}
+.slide.visible .drawin{opacity:1}
+
+/* ===========================================
+   12. CHROME DE PRESENTACIÓN (fuera del stage)
+   =========================================== */
+.deck-controls{display:flex;align-items:center;gap:18px;
+  font:500 13px/1 var(--f-mono);letter-spacing:.18em;color:#5C6A85;
+  background:rgba(13,18,34,.86);border:1px solid #26314c;padding:11px 18px;backdrop-filter:blur(6px)}
+.deck-controls button{background:none;border:0;color:#8A96A8;cursor:pointer;font:inherit;padding:4px 8px}
+.deck-controls button:hover{color:var(--gold)}
+.progress{position:fixed;left:0;top:0;height:2px;background:var(--gold);z-index:1001;transition:width .4s var(--ease)}
+.edit-hotzone{position:fixed;top:0;left:0;width:80px;height:80px;z-index:10000;cursor:pointer}
+.edit-toggle{position:fixed;top:16px;left:16px;z-index:10001;opacity:0;pointer-events:none;
+  transition:opacity .3s ease;background:rgba(13,18,34,.9);border:1px solid #26314c;color:#8A96A8;
+  font-size:19px;padding:9px 13px;cursor:pointer}
+.edit-toggle.show,.edit-toggle.active{opacity:1;pointer-events:auto}
+.edit-toggle.active{border-color:var(--gold);color:var(--gold)}
+[contenteditable="true"]{outline:1px dashed var(--gold);outline-offset:3px}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="Modo edición (E)">✎</button>
+
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- ============ 01 · PORTADA (sin chrome) ============ -->
+<section class="slide navy active visible">
+  <div class="wrap chromeless">
+    <div style="display:flex;flex-direction:column;justify-content:center;height:100%">
+      <div class="kicker reveal d1">Herencia, segunda parte</div>
+      <div class="rule growx"></div>
+      <h1 class="display reveal d3" style="margin-top:12px">Sobreescritura<br>y <em>Polimorfismo</em></h1>
+      <p class="lead reveal d5" style="margin-top:52px;max-width:1080px">
+        Un mismo llamado, muchas respuestas. Y el <code>if/else</code> que dejás de escribir para siempre.</p>
+      <div class="reveal d6" style="margin-top:76px;display:flex;gap:46px;align-items:center">
+        <span class="tag">Clase 03</span>
+        <span style="font:400 var(--t-cap)/1 var(--f-mono);letter-spacing:.2em;color:var(--hint-d);text-transform:uppercase">Programación II · UTN · Unidad 1 — POO</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 · CHECKPOINT DE APERTURA ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Checkpoint</span><span><b>02</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">Lo que quedó de la clase pasada</div>
+          <h2 style="margin-top:26px">En la clase pasada vimos herencia.<br><em>Perro extends Animal.</em></h2>
+          <p style="margin-top:34px" class="fg">Si <code>Animal</code> tiene un método <code>comer()</code> y <code>Perro</code> <strong>no</strong> lo define…</p>
+          <h3 style="margin-top:22px;color:var(--gold)">¿Perro puede comer?</h3>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <p class="fg" style="font-size:26px">Sí. <code>Perro</code> <strong>hereda</strong> <code>comer()</code> de <code>Animal</code>. No hace falta escribirlo de nuevo: ya lo tiene.</p>
+            <p>Eso es justamente lo que resuelve la herencia — escribir el comportamiento común <em>una sola vez</em>.</p>
+            <hr class="hr" style="margin:26px 0">
+            <p class="fg">La pregunta interesante, y la que abre la clase de hoy, es la otra:</p>
+            <h3 style="margin-top:16px"><em>¿Y si Perro quiere comer de una forma distinta a la de Animal?</em></h3>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Repaso</span></div>
+  </div>
+</section>
+
+<!-- ============ 03 · SOBREESCRITURA + DIAGRAMA UML ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Sobreescritura (Override)</span><span><b>03</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2n divx" style="flex:1">
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <div class="kicker">Definición</div>
+          <h2 style="margin-top:24px">Redefinir el método <em>en la subclase</em>.</h2>
+          <ul class="dash" style="margin-top:38px">
+            <li><span class="fg">Mismo <strong>nombre</strong> y mismos <strong>parámetros</strong> que el del padre — pero hace algo diferente.</span></li>
+            <li><span class="fg">Ante el mismo llamado <code>hacerSonido()</code>, cada subclase responde <em>a su manera</em>.</span></li>
+          </ul>
+        </div>
+        <!-- Diagrama UML dibujado con CSS + SVG -->
+        <div class="uml drawin">
+          <!-- Padre -->
+          <div class="box" style="left:31%;top:2%;width:38%;height:19%">
+            <div class="bt">Animal</div><div class="bm">hacerSonido()</div>
+          </div>
+          <!-- Triángulo vacío de herencia, apoyado en el borde inferior de Animal -->
+          <svg class="tri" style="left:50%;top:21%" viewBox="0 0 26 15">
+            <polygon points="13,1 25,14 1,14" fill="#1C2644" stroke="#C8A870" stroke-width="1.6"/>
+          </svg>
+          <!-- Del triángulo baja al bus horizontal -->
+          <div class="ln v" style="left:50%;top:calc(21% + 15px);height:calc(19% - 15px)"></div>
+          <div class="ln h" style="left:16%;right:16%;top:40%"></div>
+          <!-- Del bus baja a cada hija -->
+          <div class="ln v" style="left:16%;top:40%;height:14%"></div>
+          <div class="ln v" style="left:50%;top:40%;height:14%"></div>
+          <div class="ln v" style="left:84%;top:40%;height:14%"></div>
+          <!-- Hijas: centros en 16% · 50% · 84% -->
+          <div class="box" style="left:2%;top:54%;width:28%;height:19%">
+            <div class="bt">Perro</div><div class="bm">hacerSonido()</div>
+          </div>
+          <div class="box" style="left:36%;top:54%;width:28%;height:19%">
+            <div class="bt">Gato</div><div class="bm">hacerSonido()</div>
+          </div>
+          <div class="box" style="left:70%;top:54%;width:28%;height:19%">
+            <div class="bt">Vaca</div><div class="bm">hacerSonido()</div>
+          </div>
+          <div class="bubble" style="left:3%;top:82%">¡Guau!</div>
+          <div class="bubble" style="left:37%;top:82%">¡Miau!</div>
+          <div class="bubble" style="left:71%;top:82%">¡Muuu!</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Sobreescritura</span></div>
+  </div>
+</section>
+
+<!-- ============ 04 · SOBREESCRITURA — EL CÓDIGO ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Sobreescritura — el código</span><span><b>04</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2n divx" style="flex:1">
+        <div><pre class="sm reveal d1"><span class="k">class</span> Animal {
+  <span class="k">protected</span> nombre: <span class="k">string</span>;
+
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>) {
+    <span class="k">this</span>.nombre = nombre;
+  }
+
+  <span class="c">// Será sobreescrito por las subclases</span>
+  hacerSonido(): <span class="k">void</span> {
+    console.log(`${this.nombre} hace un sonido genérico`);
+  }
+}</pre></div>
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <pre class="sm reveal d3"><span class="k">class</span> Perro <span class="k">extends</span> Animal {
+  <span class="c">// Misma firma, otro comportamiento</span>
+  <span class="c">// → sobreescritura</span>
+  hacerSonido(): <span class="k">void</span> {
+    console.log(`${this.nombre} dice: ¡Guau!`);
+  }
+}
+
+<span class="k">const</span> p = <span class="k">new</span> Perro(<span style="color:var(--muted-d)">"Fido"</span>);
+p.hacerSonido();   <span class="c">// Fido dice: ¡Guau!</span></pre>
+          <p class="reveal d5 fg" style="font-size:24px">Fijate que <code>Perro</code> <strong>no</strong> heredó el sonido genérico. <em>Lo tapó con el suyo.</em></p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Sobreescritura</span></div>
+  </div>
+</section>
+
+<!-- ============ 05 · RAZONÁ — ¿para qué existe el método en el padre? ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Razoná</span><span><b>05</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">¿Para qué existe el método en el padre?</div>
+          <p style="margin-top:26px" class="fg">Si <code>Perro</code> y <code>Gato</code> <strong>los dos</strong> sobreescriben <code>hacerSonido()</code>, ese <code>console.log("hace un sonido genérico")</code> de <code>Animal</code> <em>no se ejecuta nunca</em>.</p>
+          <ol class="num" style="margin-top:34px">
+            <li><span class="fg">¿<strong>Para qué</strong> lo escribimos entonces? ¿Qué se rompería si lo borramos de <code>Animal</code>?</span></li>
+            <li><span class="fg">¿Qué sonido hace un “animal genérico”? ¿<strong>Por qué</strong> te cuesta contestar eso?</span></li>
+          </ol>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <p class="fg"><strong>1.</strong> Existe porque es <em>la promesa</em>. <code>Animal</code> declara “todo animal sabe hacer un sonido”, y eso es lo que te habilita a escribir <code>animal.hacerSonido()</code> sin saber qué animal es.</p>
+            <p><strong>2.</strong> Y acá está lo incómodo: <em>no existe</em> el sonido de un animal genérico. Lo inventamos porque el lenguaje nos obliga a poner <em>algo</em> en el cuerpo.</p>
+            <table class="sm" style="margin-top:20px">
+              <tr><th style="width:64%">Trabajo del método</th><th>¿Sirve?</th></tr>
+              <tr><td class="hi">Declarar que todo animal hace un sonido</td><td class="hi">Es el que importa</td></tr>
+              <tr><td class="hi">Decir <strong>cuál</strong> es ese sonido</td><td>Inventado. El padre no lo sabe.</td></tr>
+            </table>
+            <p style="margin-top:20px"><strong class="fg">Anotá esa incomodidad.</strong> Vas a chocar con ella tres veces más hoy.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Razoná</span></div>
+  </div>
+</section>
+
+<!-- ============ 06 · PARÁ Y PENSÁ — la firma ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Pará y pensá</span><span><b>06</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">La firma que rompe la sobreescritura</div>
+          <pre class="sm" style="margin-top:24px"><span class="k">class</span> Animal {
+  hacerSonido(): <span class="k">void</span> { <span class="c">/* ... */</span> }
+}
+
+<span class="c">// Versión A</span>
+<span class="k">class</span> Perro <span class="k">extends</span> Animal {
+  hacerSonido(volumen: <span class="k">number</span>): <span class="k">void</span> { }
+}
+
+<span class="c">// Versión B</span>
+<span class="k">class</span> Perro <span class="k">extends</span> Animal {
+  hacerSonido(): <span class="k">void</span> { }
+}</pre>
+          <h3 style="margin-top:26px">¿Cuál de las dos sobreescribe <em>de verdad</em>? ¿Qué pasa con la otra?</h3>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <h3 class="fg">Sobreescribe la <em>B</em>.</h3>
+            <p style="margin-top:16px">La <strong>A</strong> no sobreescribe: le cambiaste la <strong>firma</strong>. Para el compilador ya no es “el mismo método redefinido” — es un método distinto que resulta que se llama igual.</p>
+            <p>Pensalo así: alguien que tiene una variable de tipo <code>Animal</code> va a llamar <code>animal.hacerSonido()</code>, <strong>sin parámetros</strong>. Si adentro resulta ser un <code>Perro</code> de la versión A, falta el volumen. <em>La promesa está rota.</em></p>
+            <hr class="hr" style="margin:22px 0">
+            <p class="fg"><strong>La regla:</strong> para sobreescribir, la firma tiene que ser exactamente la misma. Mismo nombre, mismos parámetros, mismo tipo de retorno.</p>
+            <p>Si necesitás parámetros distintos, no estás sobreescribiendo. Estás haciendo otra cosa, y probablemente el diseño esté mal.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Sobreescritura</span></div>
+  </div>
+</section>
+
+<!-- ============ 07 · super.metodo() ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>super.metodo() — extender sin reescribir</span><span><b>07</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2n divx" style="flex:1">
+        <div>
+          <p class="lead reveal d1" style="margin-bottom:22px">A veces no querés <strong>reemplazar</strong> lo que hace el padre. Querés hacer <em>lo del padre, más algo tuyo</em>.</p>
+          <pre class="sm reveal d2"><span class="k">class</span> Perro <span class="k">extends</span> Animal {
+  <span class="k">private</span> raza: <span class="k">string</span>;
+
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>, raza: <span class="k">string</span>) {
+    <span class="k">super</span>(nombre);        <span class="c">// ← el CONSTRUCTOR del padre</span>
+    <span class="k">this</span>.raza = raza;
+  }
+
+  describirse(): <span class="k">void</span> {
+    <span class="k">super</span>.describirse();     <span class="c">// ← el MÉTODO del padre</span>
+    console.log(`Soy de raza ${this.raza}`);
+  }
+}</pre>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:26px">
+          <pre class="sm reveal d4"><span class="k">const</span> p = <span class="k">new</span> Perro(<span style="color:var(--muted-d)">"Rex"</span>, <span style="color:var(--muted-d)">"Pastor Alemán"</span>);
+p.describirse();
+
+<span class="c">// Soy Rex</span>
+<span class="c">// Soy de raza Pastor Alemán</span></pre>
+          <div class="reveal d5" style="border-left:3px solid var(--gold);padding-left:26px">
+            <p class="fg">Ojo: <code>super(...)</code> en el constructor y <code>super.metodo()</code> en un método son <em>dos cosas distintas</em>.</p>
+            <p style="margin-top:12px">El primero <strong>inicializa</strong> al padre. El segundo <strong>llama</strong> a un método del padre.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>super()</span></div>
+  </div>
+</section>
+
+<!-- ============ 08 · PARÁ Y PENSÁ — ¿para qué llamar al padre? ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Pará y pensá</span><span><b>08</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">¿Para qué llamar al padre pudiendo copiar la línea?</div>
+          <p style="margin-top:22px" class="fg">Podrías haber escrito esto y el resultado por consola sería <em>idéntico</em>:</p>
+          <pre class="sm" style="margin-top:18px">describirse(): <span class="k">void</span> {
+  console.log(`Soy ${this.nombre}`);
+  <span class="c">// ↑ en vez de super.describirse()</span>
+  console.log(`Soy de raza ${this.raza}`);
+}</pre>
+          <ol class="num" style="margin-top:28px">
+            <li><span class="fg">Si imprime lo mismo, ¿<strong>para qué</strong> sirve <code>super.describirse()</code>?</span></li>
+            <li><span class="fg">¿<strong>Por qué</strong> la versión de arriba es peor, aunque hoy funcione igual?</span></li>
+          </ol>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <p class="fg"><strong>1.</strong> Para que la frase <code>Soy ${this.nombre}</code> esté escrita <em>en un solo lugar</em>: adentro de <code>Animal</code>.</p>
+            <p><strong>2.</strong> Porque copiaste una decisión que no es tuya. El día que <code>Animal</code> cambie cómo se describe, <code>Perro</code> va a seguir imprimiendo la versión vieja. Y nadie se va a dar cuenta: no rompe, no avisa.</p>
+            <hr class="hr" style="margin:20px 0">
+            <p class="fg">La pregunta que ordena esto: <em>¿de quién es esta decisión?</em></p>
+            <ul class="dash" style="margin-top:14px">
+              <li><span class="fg">Cómo se describe un animal → decisión de <code>Animal</code></span></li>
+              <li><span class="fg">Qué agrega un perro → decisión de <code>Perro</code></span></li>
+            </ul>
+            <p style="margin-top:18px">No es que copiar esté mal <em>hoy</em>. Es que te obliga a acordarte, para siempre, de mantener las dos copias sincronizadas. <strong>Y no te vas a acordar.</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>super()</span></div>
+  </div>
+</section>
+
+<!-- ============ 09 · EJERCICIO EN VIVO 1 ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Ejercicio en vivo 01</span><span><b>09</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">El sueldo del Gerente</div>
+          <pre class="sm" style="margin-top:22px"><span class="k">class</span> Empleado {
+  <span class="k">protected</span> nombre: <span class="k">string</span>;
+  <span class="k">protected</span> sueldoBase: <span class="k">number</span>;
+
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>, sueldoBase: <span class="k">number</span>) {
+    <span class="k">this</span>.nombre = nombre;
+    <span class="k">this</span>.sueldoBase = sueldoBase;
+  }
+
+  calcularSueldo(): <span class="k">number</span> {
+    <span class="k">return</span> <span class="k">this</span>.sueldoBase;
+  }
+}</pre>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <h3 class="fg">Creá <code>Gerente extends Empleado</code>, que además tiene <code>bono: number</code>.</h3>
+          <p style="margin-top:18px">Su sueldo es <strong>el sueldo base más el bono</strong>. Escribilo <em>reutilizando</em> el cálculo del padre — no repitas la fórmula.</p>
+          <hr class="hr" style="margin:30px 0">
+          <div class="kicker">Antes de escribir una línea</div>
+          <p style="margin-top:16px" class="fg">Si <code>Empleado.calcularSueldo()</code> hoy devuelve <code>this.sueldoBase</code> y nada más, escribir <code>return this.sueldoBase + this.bono</code> da <strong>exactamente el mismo número</strong>.</p>
+          <h3 style="margin-top:22px">¿<em>Por qué</em> te pido igual que no lo escribas así? ¿Qué situación futura estás previniendo?</h3>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Ejercicio en vivo 01</span></div>
+  </div>
+</section>
+
+<!-- ============ 10 · EJERCICIO EN VIVO 1 — RESOLUCIÓN ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Ejercicio en vivo 01 — Resolución</span><span><b>10</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div><pre class="sm reveal d1"><span class="k">class</span> Gerente <span class="k">extends</span> Empleado {
+  <span class="k">private</span> bono: <span class="k">number</span>;
+
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>, sueldoBase: <span class="k">number</span>, bono: <span class="k">number</span>) {
+    <span class="k">super</span>(nombre, sueldoBase);   <span class="c">// el padre primero</span>
+    <span class="k">this</span>.bono = bono;
+  }
+
+  calcularSueldo(): <span class="k">number</span> {
+    <span class="k">return</span> <span class="k">super</span>.calcularSueldo() + <span class="k">this</span>.bono;
+    <span class="c">//     ↑ le pido el cálculo al padre, y le sumo lo mío</span>
+  }
+}</pre></div>
+        <div style="display:flex;flex-direction:column;justify-content:center" class="reveal d3">
+          <div class="kicker">La idea clave</div>
+          <h3 style="margin-top:18px"><code>super.calcularSueldo()</code> te da el sueldo base <em>sin que vos sepas cómo lo calcula</em>.</h3>
+          <p style="margin-top:22px">Si mañana la empresa cambia la fórmula del sueldo base — le suma antigüedad, presentismo, lo que sea — <code>Gerente</code> <strong>no se toca</strong>. El cambio se hace en un solo lugar.</p>
+          <p style="margin-top:16px">Si en cambio hubieras escrito <code>return this.sueldoBase + this.bono</code>, acabás de <em>duplicar la fórmula</em>. Y el día que cambie, alguien se va a olvidar de actualizar una de las dos copias.</p>
+          <p style="margin-top:16px" class="fg"><strong>Ese “alguien” suele ser vos, tres meses después.</strong></p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Resolución</span></div>
+  </div>
+</section>
+
+<!-- ============ 11 · POLIMORFISMO ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Polimorfismo — ¿qué es realmente?</span><span><b>11</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <div class="kicker reveal d1">Muchas formas</div>
+          <h2 class="reveal d2" style="margin-top:22px">Tratar objetos de <em>distintos tipos</em> de la misma manera.</h2>
+          <p class="reveal d3" style="margin-top:26px;font-size:24px">Y que cada uno responda según su propia implementación.</p>
+          <hr class="hr reveal d4" style="margin:34px 0">
+          <p class="reveal d5 fg" style="font-size:24px">Fijate en el tipo del array: es <code>Animal[]</code>, <strong>no</strong> <code>Perro[]</code>.</p>
+          <p class="reveal d6" style="margin-top:14px">No importa qué tipo exacto es cada uno. Vos llamás a <code>hacerSonido()</code> y <em>cada uno responde como sabe</em>.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <pre class="sm reveal d3"><span class="k">const</span> animales: Animal[] = [
+  <span class="k">new</span> Perro(<span style="color:var(--muted-d)">"Fido"</span>),
+  <span class="k">new</span> Gato(<span style="color:var(--muted-d)">"Luna"</span>),
+  <span class="k">new</span> Vaca(<span style="color:var(--muted-d)">"Jacinta"</span>)
+];
+
+<span class="c">// Mismo llamado, respuestas distintas</span>
+<span class="k">for</span> (<span class="k">const</span> animal <span class="k">of</span> animales) {
+  animal.hacerSonido();
+}
+
+<span class="c">// Fido dice: ¡Guau!</span>
+<span class="c">// Luna dice: ¡Miau!</span>
+<span class="c">// Jacinta dice: ¡Muuu!</span></pre>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Polimorfismo</span></div>
+  </div>
+</section>
+
+<!-- ============ 12 · PARÁ Y PENSÁ — Animal[] vs any[] ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Pará y pensá</span><span><b>12</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">¿Por qué Animal[] y no any[]?</div>
+          <p style="margin-top:22px" class="fg">Si total “no importa qué tipo exacto es cada uno”, este array <em>también funcionaría</em>:</p>
+          <pre class="sm" style="margin-top:18px"><span class="k">const</span> animales: <span class="k">any</span>[] = [<span class="k">new</span> Perro(<span style="color:var(--muted-d)">"Fido"</span>), <span class="k">new</span> Gato(<span style="color:var(--muted-d)">"Luna"</span>)];
+animales.forEach(a => a.hacerSonido());   <span class="c">// anda igual</span></pre>
+          <ol class="num" style="margin-top:28px">
+            <li><span class="fg">¿<strong>Para qué</strong> sirve entonces poner <code>Animal[]</code>, si <code>any[]</code> hace lo mismo?</span></li>
+            <li><span class="fg">Si mañana alguien mete <code>new Heladera()</code> en el array, ¿<strong>cuándo</strong> te enterás en cada versión?</span></li>
+          </ol>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <h3 class="fg"><code>Animal[]</code> no es “no me importa el tipo”. Es <em>“me importa hasta acá y no más”</em>.</h3>
+            <p style="margin-top:18px"><code>any</code> renuncia a todo control; <code>Animal</code> pone un <strong>piso</strong>: lo que entre acá adentro, sea lo que sea, tiene que saber hacer un sonido.</p>
+            <table class="sm" style="margin-top:22px">
+              <tr><th style="width:34%">Versión</th><th>Cuándo te enterás de la heladera</th></tr>
+              <tr><td class="hi"><code>any[]</code></td><td>En <strong>ejecución</strong>, cuando reviente</td></tr>
+              <tr><td class="hi"><code>Animal[]</code></td><td>Al <strong>escribirlo</strong>. El editor te lo subraya en rojo.</td></tr>
+            </table>
+            <p style="margin-top:20px" class="fg">Cada vez que puedas mover un error de <em>runtime</em> a <em>no compila</em>, hacelo. El tipo del array no está ahí para el que escribe el código; <strong>está para el que lo va a romper</strong>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Polimorfismo</span></div>
+  </div>
+</section>
+
+<!-- ============ 13 · POR QUÉ IMPORTA — el enemigo ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Por qué el polimorfismo importa</span><span><b>13</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker reveal d1" style="color:#B3707A">Sin polimorfismo — se pudre con cada tipo nuevo</div>
+          <pre class="sm reveal d2" style="margin-top:18px"><span class="k">function</span> hacerHablar(animal: Animal): <span class="k">void</span> {
+  <span class="k">if</span> (animal <span class="k">instanceof</span> Perro) {
+    (animal <span class="k">as</span> Perro).ladrar();
+  } <span class="k">else if</span> (animal <span class="k">instanceof</span> Gato) {
+    (animal <span class="k">as</span> Gato).maullar();
+  } <span class="k">else if</span> (animal <span class="k">instanceof</span> Vaca) {
+    (animal <span class="k">as</span> Vaca).mugir();
+  }
+  <span class="c">// ¿Agregás Pato? Tenés que venir a tocar ESTE código.</span>
+}</pre>
+        </div>
+        <div>
+          <div class="kicker reveal d3">Con polimorfismo — no se toca nunca más</div>
+          <pre class="sm reveal d4" style="margin-top:18px"><span class="k">function</span> hacerHablar(animal: Animal): <span class="k">void</span> {
+  animal.hacerSonido();   <span class="c">// cada uno responde como sabe</span>
+}
+
+<span class="c">// ¿Agregás Pato? Creás la clase y sobreescribís</span>
+<span class="c">// hacerSonido(). Nada más.</span></pre>
+          <div class="reveal d6" style="margin-top:28px;border-left:3px solid var(--gold);padding-left:26px">
+            <p class="fg">En la versión mala, cada animal tiene un método con <strong>nombre distinto</strong> — <code>ladrar</code>, <code>maullar</code>, <code>mugir</code>. Eso es lo que <em>obliga</em> al <code>if</code>.</p>
+            <h3 style="margin-top:16px">Unificar el nombre del método es lo que <em>habilita</em> el polimorfismo.</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>El enemigo: el if/else por tipo</span></div>
+  </div>
+</section>
+
+<!-- ============ 14 · RAZONÁ — ¿cuántas líneas tocás? ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Razoná</span><span><b>14</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <div class="kicker">¿Cuántas líneas tenés que tocar?</div>
+          <h2 style="margin-top:26px">En la versión <em>con</em> polimorfismo, si mañana el negocio agrega <code>Pato</code>, <code>Caballo</code> y <code>Loro</code>…</h2>
+          <h3 style="margin-top:30px;color:var(--gold)">¿Cuántas líneas del código que <strong>ya existe</strong> tenés que modificar?</h3>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <div class="stat">Cero</div>
+            <p style="margin-top:20px">Escribís tres clases nuevas, cada una con su <code>hacerSonido()</code>. La función <code>hacerHablar()</code> no se toca. El array no se toca. <strong>Nada de lo que ya funcionaba se toca.</strong></p>
+            <p style="margin-top:14px">En la versión con <code>if/else</code>, en cambio, tenés que abrirla y agregarle tres ramas más. Y cada vez que abrís código que ya funcionaba, <em>tenés la chance de romperlo</em>.</p>
+            <hr class="hr" style="margin:22px 0">
+            <p class="fg"><strong>Guardate esta idea.</strong> Tiene nombre y lo vamos a ver más adelante: <em>abierto a la extensión, cerrado a la modificación</em>. Es uno de los principios SOLID, y lo acabás de aplicar sin saber cómo se llamaba.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Razoná</span></div>
+  </div>
+</section>
+
+<!-- ============ 15 · EJERCICIO EN VIVO 2 ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Ejercicio en vivo 02</span><span><b>15</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">La flota de transportes</div>
+          <p style="margin-top:20px" class="fg">Una empresa de transporte cobra distinto según el vehículo:</p>
+          <table class="sm" style="margin-top:18px">
+            <tr><td class="hi" style="width:34%"><strong>Taxi</strong></td><td><code>km * 100</code></td></tr>
+            <tr><td class="hi"><strong>Remis</strong></td><td><code>km * 80</code></td></tr>
+            <tr><td class="hi"><strong>Uber</strong></td><td><code>km * 90 + 50</code> (tarifa base)</td></tr>
+          </table>
+          <ol class="num" style="margin-top:26px">
+            <li><span class="fg">Escribí la clase base <code>Transporte</code> con <code>calcularCosto(km: number): number</code>.</span></li>
+            <li><span class="fg">Escribí las tres subclases.</span></li>
+            <li><span class="fg">Armá un array <code>flota: Transporte[]</code> con uno de cada tipo.</span></li>
+            <li><span class="fg">Recorrelo e imprimí el costo de un viaje de 10 km.</span></li>
+          </ol>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <div class="kicker">Y contestá estas dos — son la parte importante</div>
+          <ul class="dash" style="margin-top:26px">
+            <li><span class="fg">¿<strong>Por qué</strong> el array es <code>Transporte[]</code> y no tres arrays separados (<code>taxis</code>, <code>remises</code>, <code>ubers</code>)? ¿Qué podés hacer con uno solo que no podrías con tres?</span></li>
+            <li><span class="fg">Cuando escribas <code>Transporte.calcularCosto()</code> vas a tener que poner <strong>algo</strong> adentro. ¿Qué pusiste, y <em>por qué no te convence</em>?</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Ejercicio en vivo 02</span></div>
+  </div>
+</section>
+
+<!-- ============ 16 · EJERCICIO EN VIVO 2 — RESOLUCIÓN ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Ejercicio en vivo 02 — Resolución</span><span><b>16</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div><pre class="xs reveal d1"><span class="k">class</span> Transporte {
+  <span class="k">protected</span> marca: <span class="k">string</span>;
+  <span class="k">constructor</span>(marca: <span class="k">string</span>) { <span class="k">this</span>.marca = marca; }
+
+  calcularCosto(km: <span class="k">number</span>): <span class="k">number</span> {
+    <span class="k">return</span> <span class="bad">0</span>;   <span class="c">// ⚠ ¿tiene sentido esto?</span>
+  }
+}
+
+<span class="k">class</span> Taxi <span class="k">extends</span> Transporte {
+  calcularCosto(km: <span class="k">number</span>) { <span class="k">return</span> km * 100; }
+}
+<span class="k">class</span> Remis <span class="k">extends</span> Transporte {
+  calcularCosto(km: <span class="k">number</span>) { <span class="k">return</span> km * 80; }
+}
+<span class="k">class</span> Uber <span class="k">extends</span> Transporte {
+  calcularCosto(km: <span class="k">number</span>) { <span class="k">return</span> km * 90 + 50; }
+}
+
+<span class="k">const</span> flota: Transporte[] = [
+  <span class="k">new</span> Taxi(<span style="color:var(--muted-l)">"Toyota"</span>),
+  <span class="k">new</span> Remis(<span style="color:var(--muted-l)">"Peugeot"</span>),
+  <span class="k">new</span> Uber(<span style="color:var(--muted-l)">"Chevrolet"</span>),
+];
+
+<span class="c">// Los proceso a todos igual, sin preguntar de qué tipo son</span>
+flota.forEach(t => console.log(t.calcularCosto(10)));
+<span class="c">// 1000 · 800 · 950</span></pre></div>
+        <div style="display:flex;flex-direction:column;justify-content:center" class="reveal d3">
+          <div class="kicker">Por qué un solo array y no tres</div>
+          <p style="margin-top:16px">Con <code>taxis</code>, <code>remises</code> y <code>ubers</code> por separado, para facturar el día tenés que escribir <strong>tres recorridos</strong> — y un cuarto el día que entre <code>Combi</code>. Con <code>flota: Transporte[]</code> escribís <em>uno solo</em>, y ese <code>forEach</code> no se toca nunca más.</p>
+          <hr class="hr" style="margin:26px 0">
+          <div class="kicker">Ojo con esa línea marcada</div>
+          <p style="margin-top:16px"><code>Transporte.calcularCosto()</code> devuelve <code>0</code>. Es una respuesta <em>inventada</em> para un método que no debería existir: un “transporte genérico” no tiene tarifa.</p>
+          <p style="margin-top:14px">Peor todavía: nada te impide escribir <code>new Transporte("Fiat")</code>. Un objeto que no es taxi, ni remis, ni uber. ¿Qué es? ¿Cuánto cobra? Cero, aparentemente.</p>
+          <p style="margin-top:16px" class="fg"><strong>No lo arreglamos hoy.</strong> Guardá la incomodidad: la clase que viene tiene la herramienta exacta.</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Resolución</span></div>
+  </div>
+</section>
+
+<!-- ============ 17 · EJERCICIO EN VIVO 3 ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Ejercicio en vivo 03</span><span><b>17</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">Notificaciones por varios canales</div>
+          <table class="sm" style="margin-top:20px">
+            <tr><td class="hi" style="width:26%"><strong>Email</strong></td><td><code>"Enviando mail a {destino}: {mensaje}"</code></td></tr>
+            <tr><td class="hi"><strong>SMS</strong></td><td><code>"SMS a {destino}: {mensaje}"</code> — el mensaje se <strong>corta a 140</strong> caracteres</td></tr>
+            <tr><td class="hi"><strong>Push</strong></td><td><code>"Push a {destino}: {mensaje}"</code></td></tr>
+          </table>
+          <p style="margin-top:26px" class="fg">Modelalo de forma que esta función <em>nunca haya que tocarla</em>, sin importar cuántos canales se agreguen después:</p>
+          <pre class="sm" style="margin-top:16px"><span class="k">function</span> notificarATodos(canales: <span class="bad">???</span>,
+                        destino: <span class="k">string</span>,
+                        mensaje: <span class="k">string</span>): <span class="k">void</span> {
+  <span class="bad">// ???</span>
+}</pre>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <div class="kicker">Mientras lo escribís, contestá</div>
+          <ul class="dash" style="margin-top:26px">
+            <li><span class="fg">El recorte a 140 caracteres, ¿<strong>por qué</strong> va adentro de <code>SMS</code> y no adentro de <code>notificarATodos()</code> con un <code>if</code>? <em>¿Quién tiene que saber que existe ese límite?</em></span></li>
+            <li><span class="fg">¿<strong>Para qué</strong> sirve que los tres métodos se llamen igual? Probá pensar qué pasaría con <code>notificarATodos()</code> si <code>SMS</code> tuviera <code>enviarSMS()</code>.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Ejercicio en vivo 03</span></div>
+  </div>
+</section>
+
+<!-- ============ 18 · EJERCICIO EN VIVO 3 — RESOLUCIÓN ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Ejercicio en vivo 03 — Resolución</span><span><b>18</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div><pre class="xs reveal d1"><span class="k">class</span> Notificacion {
+  enviar(destino: <span class="k">string</span>, mensaje: <span class="k">string</span>): <span class="k">void</span> {
+    console.log(`Enviando a ${destino}: ${mensaje}`);
+  }
+}
+
+<span class="k">class</span> Email <span class="k">extends</span> Notificacion {
+  enviar(destino: <span class="k">string</span>, mensaje: <span class="k">string</span>): <span class="k">void</span> {
+    console.log(`Enviando mail a ${destino}: ${mensaje}`);
+  }
+}
+
+<span class="k">class</span> SMS <span class="k">extends</span> Notificacion {
+  enviar(destino: <span class="k">string</span>, mensaje: <span class="k">string</span>): <span class="k">void</span> {
+    <span class="k">const</span> recortado = mensaje.substring(0, 140);
+    console.log(`SMS a ${destino}: ${recortado}`);
+  }
+}
+
+<span class="c">// El parámetro es del tipo PADRE. Esa es la clave.</span>
+<span class="k">function</span> notificarATodos(canales: Notificacion[],
+                        destino: <span class="k">string</span>, mensaje: <span class="k">string</span>): <span class="k">void</span> {
+  canales.forEach(c => c.enviar(destino, mensaje));
+}</pre></div>
+        <div style="display:flex;flex-direction:column;justify-content:center" class="reveal d3">
+          <div class="kicker">Por qué el recorte vive adentro de SMS</div>
+          <p style="margin-top:16px">Porque el límite de 140 caracteres <em>es un problema del SMS</em>, no del sistema de notificaciones. <code>notificarATodos()</code> no tiene por qué enterarse de que existe.</p>
+          <p style="margin-top:14px">Si estuviera afuera, con un <code>if (canal instanceof SMS)</code>, volvés al código rígido: cada canal con su capricho te agrega una rama más a una función que no debería saber nada de eso.</p>
+          <p style="margin-top:14px" class="fg"><strong>La regla:</strong> cada clase se hace cargo de sus propias rarezas.</p>
+          <hr class="hr" style="margin:24px 0">
+          <div class="kicker">Y para qué sirve que se llamen igual</div>
+          <p style="margin-top:16px">Si <code>SMS</code> tuviera <code>enviarSMS()</code>, <code>notificarATodos()</code> no podría escribir <code>c.enviar(...)</code> — tendría que preguntar de qué tipo es cada canal antes de llamarlo.</p>
+          <p style="margin-top:14px" class="fg">Sin el nombre unificado tenés herencia, <em>pero no polimorfismo</em>.</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Resolución</span></div>
+  </div>
+</section>
+
+<!-- ============ 19 · PREDECÍ ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Predecí — qué imprime este programa</span><span><b>19</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div><pre class="xs"><span class="k">class</span> Vehiculo {
+  <span class="k">constructor</span>(<span class="k">protected</span> marca: <span class="k">string</span>) {}
+
+  describirse(): <span class="k">void</span> {
+    console.log(`Vehículo ${this.marca}`);
+  }
+}
+
+<span class="k">class</span> Auto <span class="k">extends</span> Vehiculo {
+  describirse(): <span class="k">void</span> {
+    <span class="k">super</span>.describirse();
+    console.log("  Tengo 4 ruedas");
+  }
+}
+
+<span class="k">class</span> Moto <span class="k">extends</span> Vehiculo {
+  <span class="c">// (no define describirse)</span>
+}
+
+<span class="k">class</span> Camion <span class="k">extends</span> Vehiculo {
+  describirse(carga: <span class="k">number</span>): <span class="k">void</span> {
+    console.log(`Camión con ${carga} kg`);
+  }
+}
+
+<span class="k">const</span> vehiculos: Vehiculo[] = [
+  <span class="k">new</span> Auto(<span style="color:var(--muted-d)">"Toyota"</span>), <span class="k">new</span> Moto(<span style="color:var(--muted-d)">"Honda"</span>), <span class="k">new</span> Camion(<span style="color:var(--muted-d)">"Scania"</span>),
+];
+
+vehiculos.forEach(v => v.describirse());</pre></div>
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <h3 class="fg">Sin ejecutar nada: ¿qué imprime? Y si algo <strong>no compila</strong>, decí qué línea y por qué.</h3>
+          <hr class="hr" style="margin:32px 0">
+          <div class="kicker">Y una más, sobre la clase que falla</div>
+          <p style="margin-top:18px" class="fg">El compilador podría dejarte pasar y que reviente en ejecución.</p>
+          <h3 style="margin-top:18px">¿<em>Por qué</em> te frena antes? ¿<em>A quién</em> está protegiendo con eso?</h3>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Predecí</span></div>
+  </div>
+</section>
+
+<!-- ============ 20 · PREDECÍ — LA RESPUESTA ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Predecí — la respuesta</span><span><b>20</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <h3 class="reveal d1"><strong>No compila.</strong> El error está en <em>Camion</em>.</h3>
+          <pre class="sm reveal d2" style="margin-top:18px">describirse(carga: <span class="k">number</span>): <span class="k">void</span> { ... }
+<span class="c">//          ↑ firma distinta a la del padre</span>
+<span class="c">//            → NO sobreescribe</span></pre>
+          <p class="reveal d3" style="margin-top:20px">Si sacás <code>Camion</code>, el resto imprime:</p>
+          <pre class="sm reveal d3" style="margin-top:14px">Vehículo Toyota      <span class="c">← Auto: llama a super()</span>
+  Tengo 4 ruedas     <span class="c">← ...y agrega lo suyo</span>
+Vehículo Honda       <span class="c">← Moto hereda tal cual</span></pre>
+          <table class="sm reveal d4" style="margin-top:26px">
+            <tr><th style="width:22%">Clase</th><th>Resultado</th></tr>
+            <tr><td class="hi">Auto</td><td>Extiende: hace lo del padre <strong>más</strong> lo suyo</td></tr>
+            <tr><td class="hi">Moto</td><td>Hereda el comportamiento del padre <strong>tal cual</strong></td></tr>
+            <tr><td class="hi">Camion</td><td>No compila. <em>No es sobreescritura.</em></td></tr>
+          </table>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center" class="reveal d5">
+          <div class="kicker">A quién protege el compilador</div>
+          <p style="margin-top:16px">A la línea <code>vehiculos.forEach(v =&gt; v.describirse())</code>.</p>
+          <p style="margin-top:14px">Esa línea confía en una promesa: <em>cualquier cosa que esté en este array sabe describirse sin que le pasen nada</em>. <code>Camion</code> la rompe — pide una carga que el <code>forEach</code> no tiene de dónde sacar.</p>
+          <p style="margin-top:14px">Fijate <strong>dónde</strong> aparecería el error si lo dejara pasar: no en <code>Camion</code>, sino en el <code>forEach</code> — un código que está bien escrito y que nadie tocó. <em>El culpable rompe en la casa de otro.</em></p>
+          <hr class="hr" style="margin:24px 0">
+          <p class="fg"><strong>Lo importante de Moto:</strong> no sobreescribir <em>es una opción válida</em>. No estás obligada a redefinir todo. Si el comportamiento del padre te sirve, dejalo.</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Predecí</span></div>
+  </div>
+</section>
+
+<!-- ============ 21 · CHECKPOINT — el porqué de cada herramienta ============ -->
+<section class="slide navy">
+  <div class="wrap">
+    <div class="chrome"><span>Checkpoint</span><span><b>21</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div>
+          <div class="kicker">El porqué de cada herramienta</div>
+          <p style="margin-top:20px" class="fg">Todo lo de hoy se puede recitar. Lo que quiero es que puedas contestar <em>para qué existe cada cosa</em>. Sin mirar para arriba:</p>
+          <ol class="num" style="margin-top:26px">
+            <li><span class="fg">¿<strong>Para qué</strong> sirve sobreescribir un método, si igual podrías darle un nombre distinto en cada subclase?</span></li>
+            <li><span class="fg">¿<strong>Por qué</strong> la firma tiene que ser idéntica? ¿<em>Quién</em> se rompe si no lo es?</span></li>
+            <li><span class="fg">¿<strong>Para qué</strong> existe <code>super.metodo()</code>, si podés copiar el cuerpo del padre?</span></li>
+            <li><span class="fg">¿<strong>Por qué</strong> el <code>if/else</code> que pregunta el tipo es un problema, si funciona perfecto?</span></li>
+          </ol>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <ol class="num">
+              <li><span>Para poder llamarlos <strong>a todos igual sin saber cuál es cuál</strong>. Con nombres distintos tenés herencia, pero cada llamada te obliga a preguntar antes.</span></li>
+              <li><span>Se rompe <strong>quien llama</strong>. Alguien escribió <code>animal.hacerSonido()</code> confiando en la promesa del padre.</span></li>
+              <li><span>Para que cada decisión viva <strong>en un solo lugar</strong>. Copiar funciona hoy y se desincroniza mañana, en silencio.</span></li>
+              <li><span>Porque te obliga a <strong>abrir código que ya andaba</strong>. No es fealdad: es riesgo.</span></li>
+            </ol>
+            <hr class="hr" style="margin:24px 0">
+            <h3 class="fg">Y si te fijás, las cuatro respuestas son <em>la misma</em>: todas buscan que el código que ya existe <strong>no se toque</strong>.</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Checkpoint</span></div>
+  </div>
+</section>
+
+<!-- ============ 22 · RECAP ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Recap — lo de hoy</span><span><b>22</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 divx" style="flex:1">
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <table class="reveal d1">
+            <tr><th style="width:40%">Concepto</th><th>En una línea</th></tr>
+            <tr><td class="hi"><strong>Sobreescritura</strong></td><td>Misma firma, comportamiento propio</td></tr>
+            <tr><td class="hi"><code>super.metodo()</code></td><td>Lo del padre <strong>más</strong> lo mío — en vez de duplicar</td></tr>
+            <tr><td class="hi"><strong>Polimorfismo</strong></td><td>Array del tipo <strong>padre</strong>, cada uno responde como sabe</td></tr>
+            <tr><td class="hi"><strong>Código rígido</strong></td><td>El <code>if/else</code> que hay que abrir con cada tipo nuevo</td></tr>
+          </table>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:34px">
+          <div class="reveal d3">
+            <div class="kicker">La señal de alarma que te llevás</div>
+            <h3 style="margin-top:16px">Cuando veas un <code>if/else</code> (o un <code>switch</code>) preguntando <em>de qué tipo es</em> un objeto, casi siempre eso debería ser polimorfismo.</h3>
+          </div>
+          <hr class="hr reveal d4">
+          <div class="reveal d5">
+            <div class="kicker">La incomodidad que te llevás</div>
+            <h3 style="margin-top:16px">Ese <code>return 0</code> del <code>Transporte</code> genérico. <em>La clase que viene lo resolvemos.</em></h3>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Recap</span></div>
+  </div>
+</section>
+
+<!-- ============ 23 · DIVISOR — DESPUÉS DE CLASE ============ -->
+<section class="slide navy">
+  <div class="wrap chromeless">
+    <div style="display:flex;flex-direction:column;justify-content:center;height:100%">
+      <div class="stat reveal d1">06</div>
+      <div class="rule growx" style="margin:28px 0"></div>
+      <h1 class="reveal d3">Después de<br><em>clase</em></h1>
+      <p class="lead reveal d5" style="margin-top:40px;max-width:900px">
+        Seis ejercicios. <strong>Intentá cada uno antes de abrir la respuesta.</strong> Si mirás primero, la clase que viene no te va a servir de nada.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 24 · TAREA 1 ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Tarea · Ejercicio 01 — Descuentos por tipo de cliente</span><span><b>24</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 c2r divx" style="flex:1">
+        <div>
+          <p class="fg">Refactorizá este código usando herencia y sobreescritura. <em>Nada de if/else.</em></p>
+          <pre class="xs" style="margin-top:16px"><span class="k">function</span> calcularDescuento(tipoCliente: <span class="k">string</span>,
+                           monto: <span class="k">number</span>): <span class="k">number</span> {
+  <span class="k">if</span> (tipoCliente === "vip")          { <span class="k">return</span> monto * 0.20; }
+  <span class="k">else if</span> (tipoCliente === "regular") { <span class="k">return</span> monto * 0.10; }
+  <span class="k">else if</span> (tipoCliente === "nuevo")   { <span class="k">return</span> monto * 0.05; }
+  <span class="k">else</span> { <span class="k">return</span> 0; }
+}</pre>
+          <div class="kicker" style="margin-top:24px">Y contestá por escrito</div>
+          <ul class="dash" style="margin-top:16px">
+            <li><span class="fg">El código de arriba <strong>funciona bien</strong>. ¿<strong>Por qué</strong> vale la pena cambiarlo? Nombrá algo concreto que se pueda romper con la versión actual y no con la tuya.</span></li>
+            <li><span class="fg">¿<strong>Para qué</strong> te sirve que el tipo de cliente deje de ser un <code>string</code>?</span></li>
+          </ul>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <div class="rev-grid">
+              <pre class="xs"><span class="k">class</span> Cliente {
+  <span class="k">constructor</span>(<span class="k">protected</span> nombre: <span class="k">string</span>) {}
+  calcularDescuento(monto: <span class="k">number</span>): <span class="k">number</span> { <span class="k">return</span> <span class="bad">0</span>; }
+}
+
+<span class="k">class</span> ClienteVIP <span class="k">extends</span> Cliente {
+  calcularDescuento(m: <span class="k">number</span>) { <span class="k">return</span> m * 0.20; }
+}
+<span class="k">class</span> ClienteRegular <span class="k">extends</span> Cliente {
+  calcularDescuento(m: <span class="k">number</span>) { <span class="k">return</span> m * 0.10; }
+}
+<span class="k">class</span> ClienteNuevo <span class="k">extends</span> Cliente {
+  calcularDescuento(m: <span class="k">number</span>) { <span class="k">return</span> m * 0.05; }
+}
+
+<span class="k">const</span> clientes: Cliente[] = [<span class="k">new</span> ClienteVIP(<span style="color:var(--muted-l)">"Ana"</span>), <span class="k">new</span> ClienteRegular(<span style="color:var(--muted-l)">"Juan"</span>)];</pre>
+              <div>
+                <div class="kicker">Algo concreto que se rompe</div>
+                <p style="margin-top:10px"><code>calcularDescuento("vipp", 1000)</code>. Con dos p. O <code>"VIP"</code> en mayúsculas. O <code>"vip "</code> con un espacio que quedó de un formulario.</p>
+                <p>En los tres casos el descuento sale <strong>0</strong>, sin error y sin aviso. El cliente VIP paga precio de lista y nadie se entera hasta que reclama.</p>
+                <p>Ese <code>else { return 0 }</code> no es un caso borde: es el que <em>se traga todos los errores de tipeo</em>.</p>
+              </div>
+              <div>
+                <div class="kicker">Para qué sirve que no sea string</div>
+                <p style="margin-top:10px">Porque <code>new ClienteVIPP()</code> <em>no existe</em>. No da error en ejecución — no lo podés ni escribir.</p>
+                <p>Un <code>string</code> acepta infinitos valores y solo tres son válidos; vos tenés que acordarte de cuáles. Le pasaste el trabajo de recordar <strong>del programador al compilador</strong>.</p>
+                <p class="fg">Y ese <code>return 0</code> te tiene que estar incomodando igual que el del <code>Transporte</code>. <em>Buena señal.</em></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Tarea 01</span></div>
+  </div>
+</section>
+
+<!-- ============ 25 · TAREA 2 ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Tarea · Ejercicio 02 — Eliminá la duplicación</span><span><b>25</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 c2r divx" style="flex:1">
+        <div>
+          <p class="fg">Acá hay código duplicado. Extraé lo común a <code>AnimalCallejero</code> y hacé que ambas la extiendan.</p>
+          <pre class="xs" style="margin-top:14px"><span class="k">class</span> PerroCallejero {
+  <span class="k">private</span> nombre: <span class="k">string</span>;
+  <span class="k">private</span> energia: <span class="k">number</span> = 100;
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>) { <span class="k">this</span>.nombre = nombre; }
+
+  comer():  <span class="k">void</span> { <span class="k">this</span>.energia += 20; }
+  dormir(): <span class="k">void</span> { <span class="k">this</span>.energia += 30; }
+  ladrar(): <span class="k">void</span> { console.log(`${this.nombre}: Guau`); }
+}
+
+<span class="k">class</span> GatoCallejero {
+  <span class="k">private</span> nombre: <span class="k">string</span>;
+  <span class="k">private</span> energia: <span class="k">number</span> = 100;
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>) { <span class="k">this</span>.nombre = nombre; }
+
+  comer():   <span class="k">void</span> { <span class="k">this</span>.energia += 20; }
+  dormir():  <span class="k">void</span> { <span class="k">this</span>.energia += 30; }
+  maullar(): <span class="k">void</span> { console.log(`${this.nombre}: Miau`); }
+}</pre>
+          <div class="kicker" style="margin-top:20px">Y contestá</div>
+          <ul class="dash" style="margin-top:14px">
+            <li><span class="fg">¿<strong>Por qué</strong> <code>nombre</code> no puede quedar <code>private</code>? Dejalo <code>private</code> a propósito y leé el error <em>antes</em> de cambiarlo.</span></li>
+            <li><span class="fg">¿<strong>Para qué</strong> te conviene unificar <code>ladrar()</code> y <code>maullar()</code> en un solo nombre? ¿Qué <strong>no</strong> podrías escribir si los dejás como están?</span></li>
+          </ul>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <pre class="xs"><span class="k">class</span> AnimalCallejero {
+  <span class="k">protected</span> nombre: <span class="k">string</span>;      <span class="c">// ⚠ protected, NO private</span>
+  <span class="k">protected</span> energia: <span class="k">number</span> = 100;
+
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>) { <span class="k">this</span>.nombre = nombre; }
+
+  comer():  <span class="k">void</span> { <span class="k">this</span>.energia += 20; }
+  dormir(): <span class="k">void</span> { <span class="k">this</span>.energia += 30; }
+
+  hacerSonido(): <span class="k">void</span> { console.log(`${this.nombre} hace un sonido`); }
+}
+
+<span class="k">class</span> PerroCallejero <span class="k">extends</span> AnimalCallejero {
+  hacerSonido(): <span class="k">void</span> { console.log(`${this.nombre}: Guau`); }
+}
+<span class="k">class</span> GatoCallejero <span class="k">extends</span> AnimalCallejero {
+  hacerSonido(): <span class="k">void</span> { console.log(`${this.nombre}: Miau`); }
+}</pre>
+            <div class="rev-grid" style="margin-top:18px">
+              <div>
+                <div class="kicker">1 · protected en vez de private</div>
+                <p style="margin-top:10px">Si <code>nombre</code> quedara <code>private</code>, las subclases <strong>no podrían acceder a él</strong> — y <code>PerroCallejero</code> necesita <code>this.nombre</code> para ladrar. <code>protected</code> significa <em>“yo y mis hijas”</em>.</p>
+              </div>
+              <div>
+                <div class="kicker">2 · un solo nombre de método</div>
+                <p style="margin-top:10px">Con los nombres originales <strong>no podés</strong> escribir <code>animales.forEach(a =&gt; a.hacerSonido())</code> — cada uno tiene un método distinto y volvés al <code>if/else</code>.</p>
+                <p class="fg">Sin eso, la herencia te ahorra duplicación <em>pero no te da nada más</em>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Tarea 02</span></div>
+  </div>
+</section>
+
+<!-- ============ 26 · TAREA 3 ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Tarea · Ejercicio 03 — Jerarquía de figuras</span><span><b>26</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 c2r divx" style="flex:1">
+        <div>
+          <p class="fg">Creá <code>Figura</code> con un atributo <code>color</code> y un método <code>calcularArea(): number</code>. Después <code>Circulo</code> (radio), <code>Rectangulo</code> (ancho, alto) y <code>Triangulo</code> (base, altura), cada una con su fórmula.</p>
+          <p style="margin-top:12px">Armá un array <code>Figura[]</code> con las tres e imprimí el área de cada una.</p>
+          <div class="kicker" style="margin-top:26px">Y contestá — acá está lo interesante</div>
+          <ul class="dash" style="margin-top:16px">
+            <li><span class="fg">¿Cuál es el área de una “figura genérica”? ¿<strong>Por qué</strong> te vuelve a pasar lo mismo que con <code>Transporte</code>?</span></li>
+            <li><span class="fg">Poné un <code>describirse()</code> en <code>Figura</code> que imprima el área. Si está escrito <em>en el padre</em>, ¿a cuál <code>calcularArea()</code> llama cuando el objeto es un <code>Circulo</code>? ¿<strong>Por qué</strong>?</span></li>
+            <li><span class="fg">¿<strong>Para qué</strong> sirve que el padre pueda usar un método que él mismo no sabe calcular?</span></li>
+          </ul>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <div class="rev-grid">
+              <pre class="xs"><span class="k">class</span> Figura {
+  <span class="k">constructor</span>(<span class="k">protected</span> color: <span class="k">string</span>) {}
+
+  calcularArea(): <span class="k">number</span> { <span class="k">return</span> <span class="bad">0</span>; }   <span class="c">// ⚠ otra vez el cero inventado…</span>
+
+  describirse(): <span class="k">void</span> {
+    console.log(`Figura ${this.color} — área: ${this.calcularArea().toFixed(2)}`);
+  }
+}
+
+<span class="k">class</span> Circulo <span class="k">extends</span> Figura {
+  <span class="k">constructor</span>(color: <span class="k">string</span>, <span class="k">private</span> radio: <span class="k">number</span>) { <span class="k">super</span>(color); }
+  calcularArea() { <span class="k">return</span> Math.PI * <span class="k">this</span>.radio ** 2; }
+}
+<span class="c">// Rectangulo y Triangulo, igual: constructor con super(color) + su fórmula</span></pre>
+              <div>
+                <div class="kicker">¿A cuál calcularArea() llama?</div>
+                <p style="margin-top:10px"><strong class="fg">Al de la subclase.</strong> Aunque el método esté escrito en <code>Figura</code>, cuando el objeto es un <code>Circulo</code>, <code>this</code> <em>es</em> el círculo, y se ejecuta <em>su</em> fórmula.</p>
+                <p>Y ese es el <strong>por qué</strong>: <code>this</code> no significa “esta clase donde estoy escribiendo”. Significa <em>“el objeto concreto que recibió el llamado”</em>.</p>
+                <p>Y sí: ese <code>return 0</code> es el <strong>tercero</strong> que ves hoy. Transporte, Cliente, Figura.</p>
+              </div>
+              <div>
+                <div class="kicker">Para qué sirve — la idea más potente del día</div>
+                <p style="margin-top:10px"><code>Figura</code> escribe el <strong>procedimiento completo</strong> sin saber calcular ninguna área. El padre define <em>los pasos</em>; las hijas completan <em>el paso que solo ellas saben hacer</em>.</p>
+                <p>Si mañana querés el área en metros cuadrados, tocás <strong>un solo método</strong> y las tres cambian. Ninguna subclase se entera.</p>
+                <p class="fg">Guardate este mecanismo: más adelante vas a descubrir que <em>tiene nombre propio</em>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Tarea 03</span></div>
+  </div>
+</section>
+
+<!-- ============ 27 · TAREA 4 ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Tarea · Ejercicio 04 — super en cadena</span><span><b>27</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 c2r divx" style="flex:1">
+        <div>
+          <p class="fg">Dado este <code>Vehiculo</code>, creá <code>Auto</code> y <code>AutoElectrico extends Auto</code>.</p>
+          <pre class="xs" style="margin-top:14px"><span class="k">class</span> Vehiculo {
+  <span class="k">constructor</span>(<span class="k">protected</span> marca: <span class="k">string</span>) {}
+  describirse(): <span class="k">void</span> { console.log(`Marca: ${this.marca}`); }
+}</pre>
+          <ul class="dash" style="margin-top:18px">
+            <li><span class="fg"><code>Auto</code> agrega <code>cantidadPuertas</code>; su <code>describirse()</code> muestra marca <strong>y</strong> puertas.</span></li>
+            <li><span class="fg"><code>AutoElectrico</code> agrega <code>autonomiaKm</code>; muestra las tres cosas.</span></li>
+          </ul>
+          <p style="margin-top:14px">Cada uno debe <em>reutilizar</em> al de arriba. No repitas ningún <code>console.log</code>.</p>
+          <div class="kicker" style="margin-top:22px">Y contestá</div>
+          <ul class="dash" style="margin-top:14px">
+            <li><span class="fg">Va a tener <strong>una sola</strong> línea de <code>super</code>, pero se imprimen <strong>tres</strong> cosas. ¿<strong>Por qué</strong>?</span></li>
+            <li><span class="fg">¿<strong>Por qué</strong> el orden importa? Poné el <code>super</code> al final y mirá qué sale.</span></li>
+            <li><span class="fg"><code>cantidadPuertas</code>: ¿<code>private</code> o <code>protected</code>? <strong>Probá la otra opción</strong> y explicá por qué compiló o no.</span></li>
+          </ul>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <div class="rev-grid">
+              <pre class="xs"><span class="k">class</span> Auto <span class="k">extends</span> Vehiculo {
+  <span class="k">constructor</span>(marca: <span class="k">string</span>, <span class="k">protected</span> cantidadPuertas: <span class="k">number</span>) { <span class="k">super</span>(marca); }
+
+  describirse(): <span class="k">void</span> {
+    <span class="k">super</span>.describirse();                        <span class="c">// Vehiculo</span>
+    console.log(`Puertas: ${this.cantidadPuertas}`);
+  }
+}
+
+<span class="k">class</span> AutoElectrico <span class="k">extends</span> Auto {
+  <span class="k">constructor</span>(marca: <span class="k">string</span>, puertas: <span class="k">number</span>, <span class="k">private</span> autonomiaKm: <span class="k">number</span>) {
+    <span class="k">super</span>(marca, puertas);
+  }
+
+  describirse(): <span class="k">void</span> {
+    <span class="k">super</span>.describirse();                        <span class="c">// Auto → y este a Vehiculo</span>
+    console.log(`Autonomía: ${this.autonomiaKm} km`);
+  }
+}
+<span class="c">// Marca: Tesla / Puertas: 4 / Autonomía: 500 km</span></pre>
+              <div>
+                <div class="kicker">Una línea, tres impresiones</div>
+                <p style="margin-top:10px"><code>super.describirse()</code> no es “imprimí la línea del padre”. Es <em>ejecutá el método del padre, completo</em> — y ese método, adentro, hace su propio <code>super</code>. <code>AutoElectrico</code> ni sabe que <code>Vehiculo</code> existe.</p>
+                <p><strong class="fg">Por qué el orden importa:</strong> con el <code>super</code> al final sale la autonomía primero y la marca última. No es un error del compilador, es un error de <em>lectura</em>: lo general va antes que el detalle.</p>
+              </div>
+              <div>
+                <div class="kicker">Y la visibilidad</div>
+                <p style="margin-top:10px">Regla: <strong>super primero cuando estás agregando</strong>. Al final solo si querés envolverlo a propósito. ⚠ No lo confundas con el <code>super()</code> del constructor: <em>ese</em> va obligatoriamente primero.</p>
+                <p><strong class="fg">cantidadPuertas:</strong> con <code>private</code> <em>también compila</em> — <code>AutoElectrico</code> nunca lo toca directo, <code>super.describirse()</code> lo imprime por ella.</p>
+                <p class="fg">Si <code>super</code> te alcanza, <strong>no abras la visibilidad</strong>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Tarea 04</span></div>
+  </div>
+</section>
+
+<!-- ============ 28 · TAREA 5 ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Tarea · Ejercicio 05 — Detectá los errores de diseño</span><span><b>28</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 c2r divx" style="flex:1">
+        <div>
+          <p class="fg">Este código tiene <strong>al menos 3 problemas</strong>. Encontralos, explicá <em>por qué</em> son problemas, y reescribilo.</p>
+          <p style="margin-top:10px;font-size:19px">Ojo: encontrar los errores es la parte fácil. Lo que se corrige es el <strong>por qué</strong> — que puedas nombrar qué se rompe concretamente si lo dejás así.</p>
+          <pre class="xs" style="margin-top:14px"><span class="k">class</span> Animal {
+  <span class="k">public</span> nombre: <span class="k">string</span>;
+  <span class="k">public</span> energia: <span class="k">number</span>;
+  <span class="k">public</span> tipo: <span class="k">string</span>;
+
+  <span class="k">constructor</span>(nombre: <span class="k">string</span>, energia: <span class="k">number</span>, tipo: <span class="k">string</span>) {
+    <span class="k">this</span>.nombre = nombre;
+    <span class="k">this</span>.energia = energia;
+    <span class="k">this</span>.tipo = tipo;
+  }
+
+  hacerSonido(): <span class="k">void</span> {
+    <span class="k">if</span> (<span class="k">this</span>.tipo === "perro")      { console.log("Guau"); }
+    <span class="k">else if</span> (<span class="k">this</span>.tipo === "gato") { console.log("Miau"); }
+    <span class="k">else if</span> (<span class="k">this</span>.tipo === "vaca") { console.log("Muuu"); }
+  }
+}</pre>
+          <div class="kicker" style="margin-top:20px">La pregunta de fondo, la más importante</div>
+          <p style="margin-top:12px" class="fg"><code>tipo</code> es un <code>string</code> igual que <code>nombre</code>. ¿<strong>Por qué</strong> uno está bien como atributo y el otro no? <em>¿Qué los hace distintos, si los dos son texto?</em></p>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <div class="rev-grid">
+              <pre class="xs"><span class="k">class</span> Animal {
+  <span class="k">constructor</span>(<span class="k">protected</span> nombre: <span class="k">string</span>, <span class="k">protected</span> energia: <span class="k">number</span>) {}
+  hacerSonido(): <span class="k">void</span> { console.log(`${this.nombre} hace un sonido`); }
+}
+<span class="k">class</span> Perro <span class="k">extends</span> Animal { hacerSonido() { console.log("Guau"); } }
+<span class="k">class</span> Gato  <span class="k">extends</span> Animal { hacerSonido() { console.log("Miau"); } }
+<span class="k">class</span> Vaca  <span class="k">extends</span> Animal { hacerSonido() { console.log("Muuu"); } }</pre>
+              <div>
+                <p><strong class="fg">1 · Atributos públicos.</strong> Nada impide <code>animal.energia = -500</code>.</p>
+                <p><strong class="fg">2 · El <code>tipo: string</code> es una herencia disfrazada.</strong> <code>"perro"</code> no es un <em>dato</em> del animal: es <strong>qué clase de animal es</strong>. Y como es público, nada impide <code>animal.tipo = "unicornio"</code> — y ahí <code>hacerSonido()</code> no imprime <strong>nada</strong>, en silencio.</p>
+                <p><strong class="fg">3 · El <code>if/else</code> no escala.</strong> Cada animal nuevo obliga a abrir y modificar esta clase.</p>
+                <p class="fg">Señal de alarma: un atributo <code>tipo</code>/<code>categoria</code> guardando un string + un <code>if/else</code> preguntando por él → <strong>eso casi siempre debería ser una jerarquía de clases</strong>.</p>
+              </div>
+              <div>
+                <div class="kicker">Por qué nombre está bien y tipo no</div>
+                <table class="sm" style="margin-top:12px">
+                  <tr><th style="width:36%"></th><th>nombre</th><th>tipo</th></tr>
+                  <tr><td class="hi" style="font-size:17px">¿Cuántos valores?</td><td style="font-size:17px">Infinitos, todos válidos</td><td style="font-size:17px">Solo 3; el resto es un bug</td></tr>
+                  <tr><td class="hi" style="font-size:17px">Si lo cambiás</td><td style="font-size:17px">Se llama distinto</td><td style="font-size:17px"><strong>Se convierte en otro animal</strong></td></tr>
+                  <tr><td class="hi" style="font-size:17px">¿Se decide algo mirándolo?</td><td style="font-size:17px">No</td><td style="font-size:17px">Sí — el <code>if/else</code> entero</td></tr>
+                </table>
+                <p style="margin-top:14px">La pregunta que los separa: <em>¿el programa toma decisiones mirando este dato?</em></p>
+                <p><code>nombre</code> es un <strong>dato</strong>. <code>tipo</code> es <strong>qué clase de cosa es el objeto</strong> — y eso no se guarda en un atributo: <em>se decide al crearlo, eligiendo la clase</em>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Tarea 05</span></div>
+  </div>
+</section>
+
+<!-- ============ 29 · TAREA 6 — consigna + código ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Tarea · Ejercicio 06 — Integrador: sistema de sueldos</span><span><b>29</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 c2r divx" style="flex:1">
+        <div>
+          <p class="fg">Modelá el sistema de sueldos de una empresa.</p>
+          <table class="sm" style="margin-top:16px">
+            <tr><td class="hi" style="width:32%"><code>Empleado</code></td><td><code>nombre</code>, <code>legajo</code>, <code>sueldoBase</code>. Su <code>calcularSueldo()</code> devuelve el base.</td></tr>
+            <tr><td class="hi"><code>Vendedor</code></td><td>agrega <code>ventasDelMes</code>. Cobra el base <strong>+ 5% de sus ventas</strong>.</td></tr>
+            <tr><td class="hi"><code>Gerente</code></td><td>agrega <code>bono</code>. Cobra el base <strong>+ el bono</strong>.</td></tr>
+            <tr><td class="hi"><code>Director</code></td><td>extiende <code>Gerente</code>, agrega <code>acciones</code>. Cobra <strong>lo mismo que un gerente + $1000 por acción</strong>.</td></tr>
+          </table>
+          <p style="margin-top:18px">Armá un array <code>Empleado[]</code> con uno de cada tipo y calculá la <em>masa salarial total</em>.</p>
+          <hr class="hr" style="margin:24px 0">
+          <p class="fg" style="font-size:19px">Las cuatro preguntas de este ejercicio están en la slide siguiente. <strong>Contestalas antes de mirar.</strong></p>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver el código</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <div class="rev-grid">
+              <pre class="xs"><span class="k">class</span> Empleado {
+  <span class="k">constructor</span>(<span class="k">protected</span> nombre: <span class="k">string</span>, <span class="k">protected</span> legajo: <span class="k">number</span>,
+              <span class="k">protected</span> sueldoBase: <span class="k">number</span>) {}
+
+  calcularSueldo(): <span class="k">number</span> { <span class="k">return</span> <span class="k">this</span>.sueldoBase; }
+  mostrar(): <span class="k">void</span> { console.log(`${this.nombre}: $${this.calcularSueldo()}`); }
+}
+
+<span class="k">class</span> Vendedor <span class="k">extends</span> Empleado {
+  <span class="k">constructor</span>(n: <span class="k">string</span>, l: <span class="k">number</span>, s: <span class="k">number</span>, <span class="k">private</span> ventas: <span class="k">number</span>) { <span class="k">super</span>(n, l, s); }
+  calcularSueldo(): <span class="k">number</span> { <span class="k">return</span> <span class="k">super</span>.calcularSueldo() + <span class="k">this</span>.ventas * 0.05; }
+}
+
+<span class="k">class</span> Gerente <span class="k">extends</span> Empleado {
+  <span class="k">constructor</span>(n: <span class="k">string</span>, l: <span class="k">number</span>, s: <span class="k">number</span>, <span class="k">protected</span> bono: <span class="k">number</span>) { <span class="k">super</span>(n, l, s); }
+  calcularSueldo(): <span class="k">number</span> { <span class="k">return</span> <span class="k">super</span>.calcularSueldo() + <span class="k">this</span>.bono; }
+}
+
+<span class="k">class</span> Director <span class="k">extends</span> Gerente {
+  <span class="k">constructor</span>(n: <span class="k">string</span>, l: <span class="k">number</span>, s: <span class="k">number</span>, b: <span class="k">number</span>, <span class="k">private</span> acciones: <span class="k">number</span>) {
+    <span class="k">super</span>(n, l, s, b);
+  }
+  calcularSueldo(): <span class="k">number</span> {
+    <span class="k">return</span> <span class="k">super</span>.calcularSueldo() + <span class="k">this</span>.acciones * 1000;
+    <span class="c">//     ↑ Gerente → que a su vez llama a Empleado</span>
+  }
+}</pre>
+              <pre class="xs" style="grid-column:1/-1"><span class="k">const</span> plantilla: Empleado[] = [
+  <span class="k">new</span> Empleado(<span style="color:var(--muted-l)">"Ana"</span>, 1, 500_000),          <span class="k">new</span> Vendedor(<span style="color:var(--muted-l)">"Juan"</span>, 2, 400_000, 2_000_000),
+  <span class="k">new</span> Gerente(<span style="color:var(--muted-l)">"Sofía"</span>, 3, 800_000, 200_000), <span class="k">new</span> Director(<span style="color:var(--muted-l)">"Marcos"</span>, 4, 1_000_000, 300_000, 50),
+];
+
+<span class="c">// Masa salarial: sumo sin preguntar de qué tipo es ninguno</span>
+<span class="k">const</span> total = plantilla.reduce((suma, e) => suma + e.calcularSueldo(), 0);</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Tarea 06</span></div>
+  </div>
+</section>
+
+<!-- ============ 30 · TAREA 6 — las cuatro preguntas ============ -->
+<section class="slide cream">
+  <div class="wrap">
+    <div class="chrome"><span>Tarea · Ejercicio 06 — Las cuatro preguntas</span><span><b>30</b> / 31</span></div>
+    <div class="body">
+      <div class="cols c2 c2r divx" style="flex:1">
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <ol class="num">
+            <li><span class="fg"><code>Director</code> cobra “lo mismo que un gerente + $1000 por acción”. ¿<strong>Por qué</strong> conviene que herede de <code>Gerente</code> y no de <code>Empleado</code>? ¿Qué tendrías que escribir de más?</span></li>
+            <li><span class="fg">En el cálculo de la masa salarial, ¿<strong>por qué</strong> no hace falta preguntar de qué tipo es cada empleado? ¿Qué tocarías si mañana entra <code>Pasante</code>?</span></li>
+            <li><span class="fg">Si la empresa suma antigüedad al sueldo base, ¿<strong>cuántas clases</strong> tenés que tocar? ¿<strong>Por qué</strong> tan pocas?</span></li>
+            <li><span class="fg"><code>new Empleado("Ana", 1, 500000)</code> — alguien que no es ni vendedor, ni gerente, ni director. ¿Qué hace en la empresa? ¿<strong>Por qué</strong> el lenguaje te deja crearlo?</span></li>
+          </ol>
+        </div>
+        <div class="rev" data-rev style="border-top:0">
+          <div class="rev-cta"><span class="tag">Ver respuesta</span><span class="rev-hint">Click · o tecla R</span></div>
+          <div class="rev-body">
+            <p style="font-size:19px"><strong class="fg">1 · Por qué extiende Gerente.</strong> Porque el enunciado lo dice literalmente: cobra <em>lo mismo que un gerente</em>, más las acciones. Heredando de <code>Gerente</code> eso es <strong>una línea</strong>. Desde <code>Empleado</code> tendrías que reescribir el <code>+ this.bono</code> y llevarte el atributo también: duplicaste la regla del gerente.</p>
+            <hr class="hr" style="margin:13px 0">
+            <p style="font-size:19px"><strong class="fg">2 · Por qué el reduce no pregunta el tipo.</strong> Porque le pide a cada uno <code>calcularSueldo()</code> y <em>cada uno sabe el suyo</em>. Si entra <code>Pasante</code>, escribís la clase nueva y la línea del total <strong>no se toca</strong>.</p>
+            <hr class="hr" style="margin:13px 0">
+            <p style="font-size:19px"><strong class="fg">3 · Una sola clase.</strong> Tocás <code>Empleado.calcularSueldo()</code> y los cuatro quedan actualizados, incluido el director que está a tres niveles. Porque nadie duplicó la fórmula: todos la piden con <code>super</code>.</p>
+            <p style="font-size:19px;margin-top:9px"><em>Cada super que escribiste hoy es una clase que mañana no vas a tener que tocar.</em></p>
+            <hr class="hr" style="margin:13px 0">
+            <p style="font-size:19px"><strong class="fg">4 · Acá no hay respuesta buena.</strong> Ana es una “empleada genérica” — algo que en la empresa real <strong>no existe</strong>. Todo empleado tiene un puesto.</p>
+            <p style="font-size:19px;margin-top:9px">¿Por qué te deja crearla? Porque <code>Empleado</code> es una clase común y corriente, y <strong>toda clase se puede instanciar</strong>. El lenguaje no sabe que la escribiste solo para que las otras hereden de ella.</p>
+            <p style="font-size:19px;margin-top:9px" class="fg">Es <em>el mismo problema que el return 0</em>, visto desde el otro lado. Misma causa, misma cura — y es lo primero de la clase que viene.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Programación II — UTN</span><span>Tarea 06</span></div>
+  </div>
+</section>
+
+<!-- ============ 31 · PARA PENSAR (sin chrome) ============ -->
+<section class="slide navy">
+  <div class="wrap chromeless">
+    <div style="display:flex;flex-direction:column;justify-content:center;height:100%">
+      <div class="kicker reveal d1">Para pensar hasta la clase que viene</div>
+      <div class="rule growx"></div>
+      <ol class="num reveal d3" style="margin-top:26px;max-width:1500px;gap:26px">
+        <li><span class="fg" style="font-size:27px">Contá cuántos <code>return 0</code> inventados escribiste hoy. ¿Qué tienen <em>en común</em> los tres casos?</span></li>
+        <li><span class="fg" style="font-size:27px">Si <code>Moto extends Vehiculo</code> y no sobreescribe <code>encender()</code>, ¿<code>Moto</code> puede encenderse? ¿Y si <code>Vehiculo</code> <em>no supiera</em> cómo encenderse?</span></li>
+        <li><span class="fg" style="font-size:27px">Un <code>Auto</code> y una <code>Lampara</code> no tienen nada que ver entre sí, pero los dos <strong>se encienden y se apagan</strong>. ¿Podrías tratarlos igual <em>sin que uno herede del otro</em>?</span></li>
+      </ol>
+      <hr class="hr reveal d5" style="margin:46px 0 30px;max-width:1500px">
+      <p class="lead reveal d6" style="max-width:1400px">
+        <strong>La clase que viene:</strong> el fin de los <code>return 0</code>, y la respuesta a la pregunta 3.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<div class="deck-controls">
+  <button id="prevBtn" aria-label="Anterior">◀</button>
+  <span id="counter">01 / 31</span>
+  <button id="nextBtn" aria-label="Siguiente">▶</button>
+  <span style="opacity:.55">·</span>
+  <span style="opacity:.55">R revela</span>
+</div>
+
+<script>
+/* ===========================================
+   CONTROLADOR DE LA PRESENTACIÓN
+   Navegación: flechas, espacio, PageUp/Down, rueda, swipe.
+   Revelado: tecla R o click en el panel.
+   =========================================== */
+class SlidePresentation {
+  constructor(){
+    this.slides  = Array.from(document.querySelectorAll('.slide'));
+    this.stage   = document.getElementById('deckStage');
+    this.current = 0;
+    this.setupStageScale();
+    this.setupKeyboardNav();
+    this.setupTouchNav();
+    this.setupWheelNav();
+    this.setupReveals();
+    this.setupButtons();
+    this.numberSlides();
+    this.show(0);
+  }
+
+  /* Numera el chrome de cada slide desde el índice real:
+     así partir o reordenar una slide no obliga a renumerar a mano. */
+  numberSlides(){
+    const total = this.slides.length;
+    this.slides.forEach((s, n) => {
+      const c = s.querySelector('.chrome span:last-child');
+      if (c) c.innerHTML = `<b>${String(n+1).padStart(2,'0')}</b> / ${total}`;
+    });
+  }
+
+  /* Escala el stage 1920×1080 completo al viewport, sin re-maquetar nada */
+  setupStageScale(){
+    const scale = () => {
+      const f = Math.min(window.innerWidth/1920, window.innerHeight/1080);
+      const x = (window.innerWidth  - 1920*f)/2;
+      const y = (window.innerHeight - 1080*f)/2;
+      this.stage.style.transform = `translate(${x}px, ${y}px) scale(${f})`;
+    };
+    scale();
+    window.addEventListener('resize', scale);
+  }
+
+  setupButtons(){
+    document.getElementById('nextBtn').addEventListener('click', ()=>this.next());
+    document.getElementById('prevBtn').addEventListener('click', ()=>this.prev());
+  }
+
+  setupKeyboardNav(){
+    document.addEventListener('keydown', e => {
+      if (e.target.getAttribute('contenteditable')) return;
+      switch(e.key){
+        case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
+          e.preventDefault(); this.next(); break;
+        case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+          e.preventDefault(); this.prev(); break;
+        case 'Home': e.preventDefault(); this.show(0); break;
+        case 'End':  e.preventDefault(); this.show(this.slides.length-1); break;
+        case 'r': case 'R': e.preventDefault(); this.toggleReveals(); break;
+      }
+    });
+  }
+
+  setupTouchNav(){
+    let x0=null, y0=null;
+    document.addEventListener('touchstart', e=>{
+      x0 = e.changedTouches[0].clientX; y0 = e.changedTouches[0].clientY;
+    }, {passive:true});
+    document.addEventListener('touchend', e=>{
+      if(x0===null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      const dy = e.changedTouches[0].clientY - y0;
+      if(Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? this.next() : this.prev();
+      x0 = y0 = null;
+    }, {passive:true});
+  }
+
+  setupWheelNav(){
+    let lock = false;
+    document.addEventListener('wheel', e=>{
+      if(lock) return;
+      if(Math.abs(e.deltaY) < 24) return;
+      lock = true; setTimeout(()=>lock=false, 620);
+      e.deltaY > 0 ? this.next() : this.prev();
+    }, {passive:true});
+  }
+
+  /* Paneles de respuesta: click para revelar, click de nuevo para ocultar */
+  setupReveals(){
+    document.querySelectorAll('[data-rev]').forEach(rev=>{
+      rev.querySelector('.rev-cta').addEventListener('click', ()=> rev.classList.add('open'));
+    });
+  }
+
+  /* Tecla R: alterna las respuestas de la slide actual */
+  toggleReveals(){
+    const revs = this.slides[this.current].querySelectorAll('[data-rev]');
+    if(!revs.length) return;
+    const anyClosed = Array.from(revs).some(r => !r.classList.contains('open'));
+    revs.forEach(r => r.classList.toggle('open', anyClosed));
+  }
+
+  show(i){
+    this.current = Math.max(0, Math.min(i, this.slides.length-1));
+    this.slides.forEach((s,n)=>{
+      const on = n === this.current;
+      s.classList.toggle('active', on);
+      s.classList.toggle('visible', on);
+      /* al salir de una slide, sus respuestas vuelven a ocultarse */
+      if(!on) s.querySelectorAll('[data-rev]').forEach(r=>r.classList.remove('open'));
+    });
+    const n = String(this.current+1).padStart(2,'0');
+    document.getElementById('counter').textContent = `${n} / ${this.slides.length}`;
+    document.getElementById('progress').style.width =
+      ((this.current+1)/this.slides.length*100) + '%';
+  }
+  next(){ this.show(this.current+1); }
+  prev(){ this.show(this.current-1); }
+}
+
+/* ===========================================
+   EDICIÓN EN LÍNEA — hover en la esquina o tecla E
+   Guarda en localStorage. Basado en JS, no en selector ~ de CSS.
+   =========================================== */
+/* Se restaura ANTES de construir el controlador: si restauráramos después,
+   reemplazar innerHTML invalidaría las referencias a .slide que ya tomó. */
+function restoreSaved(){
+  try{
+    const saved = localStorage.getItem('clase3-deck');
+    if(saved) document.getElementById('deckStage').innerHTML = saved;
+  }catch(e){}
+}
+
+class InlineEditor {
+  constructor(){
+    this.isActive = false;
+    this.btn = document.getElementById('editToggle');
+    this.btn.addEventListener('click', ()=>this.toggle());
+    const hot = document.querySelector('.edit-hotzone');
+    let t = null;
+    const showBtn = ()=>{ clearTimeout(t); this.btn.classList.add('show'); };
+    const hideBtn = ()=>{ t = setTimeout(()=>{ if(!this.isActive) this.btn.classList.remove('show'); }, 400); };
+    hot.addEventListener('mouseenter', showBtn);
+    hot.addEventListener('mouseleave', hideBtn);
+    this.btn.addEventListener('mouseenter', showBtn);
+    this.btn.addEventListener('mouseleave', hideBtn);
+    document.addEventListener('keydown', e=>{
+      if((e.key==='e'||e.key==='E') && !e.target.getAttribute('contenteditable')) this.toggle();
+      if(e.key==='s' && (e.ctrlKey||e.metaKey) && this.isActive){ e.preventDefault(); this.save(); }
+    });
+  }
+  toggle(){
+    this.isActive = !this.isActive;
+    this.btn.classList.toggle('active', this.isActive);
+    this.btn.classList.toggle('show', this.isActive);
+    document.querySelectorAll('h1,h2,h3,p,li,td,th,.kicker,.lead')
+      .forEach(el => el.setAttribute('contenteditable', this.isActive));
+    if(!this.isActive) this.save();
+  }
+  save(){
+    try{ localStorage.setItem('clase3-deck', document.getElementById('deckStage').innerHTML); }catch(e){}
+  }
+}
+
+restoreSaved();
+const deck = new SlidePresentation();
+new InlineEditor();
+</script>
+</body>
+</html>
